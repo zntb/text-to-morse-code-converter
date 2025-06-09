@@ -60,6 +60,8 @@ export default function Converter() {
   const [morseCode, setMorseCode] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState([15]);
+  const [repeat, setRepeat] = useState(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
@@ -145,32 +147,39 @@ export default function Converter() {
     const elementGap = dotDuration;
 
     try {
-      for (let i = 0; i < morseCode.length; i++) {
-        if (!isPlayingRef.current) break;
+      do {
+        for (let i = 0; i < morseCode.length; i++) {
+          if (!isPlayingRef.current) break;
 
-        const char = morseCode[i];
-        console.log('Char:', char);
+          const char = morseCode[i];
 
-        if (char === '.') {
-          await playTone('dot', wpm);
-        } else if (char === '-') {
-          await playTone('dash', wpm);
-        } else if (char === ' ') {
-          await new Promise(resolve => setTimeout(resolve, letterGap * 1000));
-        } else if (char === '/') {
-          await new Promise(resolve => setTimeout(resolve, wordGap * 1000));
-        }
+          if (char === '.') {
+            await playTone('dot', wpm);
+          } else if (char === '-') {
+            await playTone('dash', wpm);
+          } else if (char === ' ') {
+            await new Promise(resolve => setTimeout(resolve, letterGap * 1000));
+          } else if (char === '/') {
+            await new Promise(resolve => setTimeout(resolve, wordGap * 1000));
+          }
 
-        // Delay between elements (unless next is space or slash)
-        const next = morseCode[i + 1];
-        if (char === '.' || char === '-') {
-          if (next !== ' ' && next !== '/' && next) {
+          const next = morseCode[i + 1];
+          if (
+            (char === '.' || char === '-') &&
+            next !== ' ' &&
+            next !== '/' &&
+            next
+          ) {
             await new Promise(resolve =>
               setTimeout(resolve, elementGap * 1000),
             );
           }
         }
-      }
+
+        if (repeat && isPlayingRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // ⏸ Pause between loops
+        }
+      } while (repeat && isPlayingRef.current);
     } catch (err) {
       console.error('Playback error:', err);
     } finally {
@@ -256,37 +265,17 @@ export default function Converter() {
                   </>
                 )}
               </Button>
+              <div className='flex items-center space-x-2'>
+                <input
+                  type='checkbox'
+                  id='repeat-toggle'
+                  checked={repeat}
+                  onChange={() => setRepeat(!repeat)}
+                  className='h-4 w-4'
+                />
+                <Label htmlFor='repeat-toggle'>Repeat Morse code</Label>
+              </div>
             </div>
-            <Button
-              onClick={async () => {
-                try {
-                  const context = new (window.AudioContext ||
-                    (window as any).webkitAudioContext)();
-
-                  if (context.state === 'suspended') {
-                    await context.resume();
-                  }
-
-                  const oscillator = context.createOscillator();
-                  const gainNode = context.createGain();
-
-                  oscillator.type = 'sine';
-                  oscillator.frequency.setValueAtTime(600, context.currentTime); // 600Hz tone
-
-                  gainNode.gain.setValueAtTime(0.3, context.currentTime);
-
-                  oscillator.connect(gainNode);
-                  gainNode.connect(context.destination);
-
-                  oscillator.start();
-                  oscillator.stop(context.currentTime + 0.5); // Play for 0.5 seconds
-                } catch (err) {
-                  console.error('Audio test failed:', err);
-                }
-              }}
-            >
-              Test Beep
-            </Button>
           </div>
 
           <div className='text-sm text-muted-foreground space-y-1'>
