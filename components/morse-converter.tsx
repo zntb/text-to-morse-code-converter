@@ -14,6 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Play, Square, Volume2, UploadCloud, Download } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
+import ResetDialog from './ResetDialog';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -260,6 +261,23 @@ export default function Converter() {
     URL.revokeObjectURL(url);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        stopPlayback();
+        setInputText('');
+        setSpeed([15]);
+        setRepeat(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className='w-full max-w-2xl mx-auto p-4'>
       <Card className='dark:bg-zinc-900 dark:text-white'>
@@ -347,22 +365,25 @@ export default function Converter() {
                 )}
               </Button>
 
-              <Button
-                variant='secondary'
-                onClick={() => {
-                  stopPlayback(); // stop Morse playback
-                  setInputText(''); // clear text
-                  setSpeed([15]); // reset speed to default
-                  setRepeat(false); // uncheck repeat
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = ''; // clear uploaded file
-                  }
+              <ResetDialog
+                onConfirm={() => {
+                  stopPlayback();
+                  setInputText('');
+                  setSpeed([15]);
+                  setRepeat(false);
+                  setFrequency([600]);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
-                className='flex items-center bg-red-200 hover:bg-red-300'
-                disabled={!morseCode.trim()}
-              >
-                Reset
-              </Button>
+                trigger={
+                  <Button
+                    variant='secondary'
+                    className='flex items-center bg-red-200 hover:bg-red-300'
+                    disabled={!morseCode.trim()}
+                  >
+                    Reset
+                  </Button>
+                }
+              />
 
               <input
                 type='file'
