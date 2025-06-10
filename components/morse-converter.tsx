@@ -12,10 +12,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Square, Volume2 } from 'lucide-react';
+import { Play, Square, Volume2, UploadCloud, Download } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 
-// Utility sleep function
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function Converter() {
@@ -23,9 +22,17 @@ export default function Converter() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState([15]);
   const [repeat, setRepeat] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
+  const [frequency, setFrequency] = useState([600]); // Default 600Hz
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const initAudioContext = () => {
     if (!audioContextRef.current) {
@@ -38,9 +45,7 @@ export default function Converter() {
 
   useEffect(() => {
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
 
@@ -72,9 +77,9 @@ export default function Converter() {
     const gainNode = context.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(600, context.currentTime);
-    gainNode.gain.setValueAtTime(0.2, context.currentTime);
+    oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
 
+    gainNode.gain.setValueAtTime(0.2, context.currentTime);
     oscillator.connect(gainNode);
     gainNode.connect(context.destination);
 
@@ -93,6 +98,7 @@ export default function Converter() {
   const stopPlayback = () => {
     setIsPlaying(false);
     isPlayingRef.current = false;
+    setHighlightIndex(null);
   };
 
   const playMorseCode = async () => {
@@ -117,7 +123,7 @@ export default function Converter() {
           if (!isPlayingRef.current) break;
 
           const char = morseCode[i];
-          const next = morseCode[i + 1];
+          setHighlightIndex(i);
 
           if (char === '.') {
             await playTone('dot', wpm);
@@ -129,6 +135,7 @@ export default function Converter() {
             await sleep(wordGap * 1000);
           }
 
+          const next = morseCode[i + 1];
           if (
             (char === '.' || char === '-') &&
             next &&
@@ -139,9 +146,7 @@ export default function Converter() {
           }
         }
 
-        if (repeat && isPlayingRef.current) {
-          await sleep(1000); // Pause before repeating
-        }
+        if (repeat && isPlayingRef.current) await sleep(1000);
       } while (repeat && isPlayingRef.current);
     } catch (err) {
       console.error('Playback error:', err);
@@ -150,9 +155,47 @@ export default function Converter() {
     }
   };
 
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const arrayBuffer = reader.result as ArrayBuffer;
+
+      // Try UTF-8 first
+      let text = '';
+      try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(arrayBuffer);
+      } catch {
+        // Fallback to ISO-8859-1 if UTF-8 fails
+        text = new TextDecoder('iso-8859-1').decode(arrayBuffer);
+      }
+
+      setInputText(text);
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([`Original:\n${inputText}\n\nMorse:\n${morseCode}`], {
+      type: 'text/plain',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `morse_code_${new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')}.txt`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className='w-full max-w-2xl mx-auto p-4'>
-      <Card>
+      <Card className='dark:bg-zinc-900 dark:text-white'>
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
             <Volume2 className='h-5 w-5' />
@@ -178,34 +221,47 @@ export default function Converter() {
             <Label htmlFor='morse-output'>Morse Code</Label>
             <Textarea
               id='morse-output'
-              value={morseCode}
+              value={morseCode
+                .split('')
+                .map((char, idx) =>
+                  idx === highlightIndex ? `🔴${char}🔴` : char,
+                )
+                .join('')}
               readOnly
-              className='min-h-[100px] font-mono bg-muted'
+              className='min-h-[100px] font-mono bg-muted dark:bg-zinc-800'
               placeholder='Morse code will appear here...'
             />
           </div>
 
           <div className='space-y-4'>
+            <Label htmlFor='speed-slider'>Speed: {speed[0]} WPM</Label>
+            <Slider
+              id='speed-slider'
+              min={5}
+              max={40}
+              step={1}
+              value={speed}
+              onValueChange={setSpeed}
+            />
+
             <div className='space-y-2'>
-              <Label htmlFor='speed-slider'>
-                Speed: {speed[0]} WPM (Words Per Minute)
-              </Label>
+              <Label htmlFor='freq-slider'>Frequency: {frequency[0]} Hz</Label>
               <Slider
-                id='speed-slider'
-                min={5}
-                max={40}
-                step={1}
-                value={speed}
-                onValueChange={setSpeed}
+                id='freq-slider'
+                min={300}
+                max={1000}
+                step={10}
+                value={frequency}
+                onValueChange={setFrequency}
                 className='w-full'
               />
               <div className='flex justify-between text-xs text-muted-foreground'>
-                <span>Slow (5 WPM)</span>
-                <span>Fast (40 WPM)</span>
+                <span>Low (300 Hz)</span>
+                <span>High (1000 Hz)</span>
               </div>
             </div>
 
-            <div className='flex gap-2'>
+            <div className='flex gap-2 items-center'>
               <Button
                 onClick={playMorseCode}
                 disabled={!morseCode.trim()}
@@ -213,37 +269,54 @@ export default function Converter() {
               >
                 {isPlaying ? (
                   <>
-                    <Square className='h-4 w-4 mr-2' />
+                    <Square className='mr-2 w-4 h-4' />
                     Stop
                   </>
                 ) : (
                   <>
-                    <Play className='h-4 w-4 mr-2' />
-                    Play Morse Code
+                    <Play className='mr-2 w-4 h-4' />
+                    Play
                   </>
                 )}
               </Button>
-              <div className='flex items-center space-x-2'>
-                <input
-                  type='checkbox'
-                  id='repeat-toggle'
-                  checked={repeat}
-                  onChange={() => setRepeat(!repeat)}
-                  className='h-4 w-4'
-                />
-                <Label htmlFor='repeat-toggle'>Repeat Morse code</Label>
-              </div>
-            </div>
-          </div>
 
-          <div className='text-sm text-muted-foreground space-y-1'>
-            <p>
-              <strong>Legend:</strong>
-            </p>
-            <p>• Dot (.) = Short beep (600Hz)</p>
-            <p>• Dash (-) = Long beep (600Hz)</p>
-            <p>• Space = Letter separation</p>
-            <p>• / = Word separation</p>
+              <div>
+                <input
+                  type='file'
+                  accept='.txt'
+                  onChange={handleUpload}
+                  ref={fileInputRef}
+                  className='hidden'
+                />
+                <Button
+                  variant='outline'
+                  className='flex items-center'
+                  onClick={handleUploadClick}
+                >
+                  <UploadCloud className='mr-1 h-4 w-4' />
+                  Upload
+                </Button>
+              </div>
+
+              <Button
+                variant='outline'
+                onClick={handleDownload}
+                className='flex items-center'
+              >
+                <Download className='mr-1 h-4 w-4' />
+                Export
+              </Button>
+            </div>
+
+            <div className='flex items-center space-x-2'>
+              <input
+                type='checkbox'
+                id='repeat-toggle'
+                checked={repeat}
+                onChange={() => setRepeat(!repeat)}
+              />
+              <Label htmlFor='repeat-toggle'>Repeat Morse code</Label>
+            </div>
           </div>
         </CardContent>
       </Card>
