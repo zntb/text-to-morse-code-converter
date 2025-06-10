@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+
 import {
   Card,
   CardContent,
@@ -9,35 +9,42 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Textarea } from '@/components/ui/textarea';
-import { Play, Square, Volume2, UploadCloud, Download } from 'lucide-react';
+
+import { Volume2 } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import ResetDialog from './reset-dialog';
+
 import { ModeToggle } from './mode-toggle';
+import MorseTextDisplay from './MorseTextDisplay';
+import MorseOutputDisplay from './MorseOutputDisplay';
+import ControlPanel from './ControlPanel';
+import WaveformCanvas from './WaveformCanvas';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function Converter() {
+  // --- State Management ---
   const [inputText, setInputText] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState([15]);
   const [repeat, setRepeat] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
-  const [frequency, setFrequency] = useState([600]); // Default 600Hz
+  const [currentTextIndex, setCurrentTextIndex] = useState<number | null>(null);
+  const [frequency, setFrequency] = useState([600]);
 
+  // --- Refs ---
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const analyserRef = useRef<AnalyserNode>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
+  const textHighlightRef = useRef<HTMLSpanElement>(
+    null,
+  ) as React.RefObject<HTMLSpanElement>;
 
+  // --- Effects for Highlight Scrolling ---
   useEffect(() => {
     if (
       highlightIndex !== null &&
@@ -46,36 +53,44 @@ export default function Converter() {
     ) {
       const container = containerRef.current;
       const highlight = highlightRef.current;
-
-      // const containerRect = container.getBoundingClientRect();
-      // const highlightRect = highlight.getBoundingClientRect();
-
-      // Calculate scroll position
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
       const highlightTop = highlight.offsetTop;
       const highlightHeight = highlight.clientHeight;
-
       if (highlightTop < scrollTop) {
-        // Scroll up if highlight is above view
         container.scrollTop = highlightTop;
       } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
-        // Scroll down if highlight is below view
         container.scrollTop = highlightTop - containerHeight + highlightHeight;
       }
     }
   }, [highlightIndex]);
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+  useEffect(() => {
+    if (
+      currentTextIndex !== null &&
+      textHighlightRef.current &&
+      textContainerRef.current
+    ) {
+      const container = textContainerRef.current;
+      const highlight = textHighlightRef.current;
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const highlightTop = highlight.offsetTop;
+      const highlightHeight = highlight.clientHeight;
+      if (highlightTop < scrollTop) {
+        container.scrollTop = highlightTop;
+      } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
+        container.scrollTop = highlightTop - containerHeight + highlightHeight;
+      }
+    }
+  }, [currentTextIndex]);
 
+  // --- Audio Context ---
   const initAudioContext = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext ||
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).webkitAudioContext)();
-
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 1024;
     }
@@ -88,63 +103,7 @@ export default function Converter() {
     };
   }, []);
 
-  useEffect(() => {
-    let animationId: number | undefined;
-
-    const drawWaveform = () => {
-      const canvas = canvasRef.current;
-      const analyser = analyserRef.current;
-      if (!canvas || !analyser) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const bufferLength = analyser.fftSize;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const draw = () => {
-        animationId = requestAnimationFrame(draw);
-        analyser.getByteTimeDomainData(dataArray);
-
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'lime';
-        ctx.beginPath();
-
-        const sliceWidth = canvas.width / bufferLength;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = (v * canvas.height) / 2;
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-          x += sliceWidth;
-        }
-
-        ctx.lineTo(canvas.width, canvas.height / 2);
-        ctx.stroke();
-      };
-
-      draw();
-    };
-
-    if (isPlaying) drawWaveform();
-    else if (animationId !== undefined) cancelAnimationFrame(animationId);
-
-    return () => {
-      if (animationId !== undefined) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [isPlaying]);
-
+  // --- Morse Code Conversion ---
   const convertToMorse = useCallback((text: string) => {
     return text
       .toUpperCase()
@@ -158,20 +117,28 @@ export default function Converter() {
     [inputText, convertToMorse],
   );
 
-  const handleTextChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInputText(e.target.value);
-    },
-    [],
-  );
+  // --- Mapping Morse Index to Text Index ---
+  const morseToTextMapping = useMemo(() => {
+    const mapping: number[] = [];
+    for (let i = 0; i < inputText.length; i++) {
+      const char = inputText[i].toUpperCase();
+      const morse = MORSE_CODE_MAP[char] || '?';
+      for (let j = 0; j < morse.length; j++) {
+        mapping.push(i);
+      }
+      if (i < inputText.length - 1) {
+        mapping.push(i);
+      }
+    }
+    return mapping;
+  }, [inputText]);
 
+  // --- Playback Logic ---
   const playTone = async (type: 'dot' | 'dash', wpm: number): Promise<void> => {
     const context = initAudioContext();
     if (context.state === 'suspended') await context.resume();
-
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
-
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
 
@@ -180,13 +147,10 @@ export default function Converter() {
     gainNode.connect(context.destination);
 
     gainNode.gain.setValueAtTime(0.2, context.currentTime);
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
 
     const duration = type === 'dot' ? 1.2 / wpm : 3.6 / wpm;
     oscillator.start();
     oscillator.stop(context.currentTime + duration);
-
     await sleep(duration * 1000);
   };
 
@@ -199,6 +163,7 @@ export default function Converter() {
     setIsPlaying(false);
     isPlayingRef.current = false;
     setHighlightIndex(null);
+    setCurrentTextIndex(null);
   };
 
   const playMorseCode = async () => {
@@ -206,25 +171,22 @@ export default function Converter() {
       stopPlayback();
       return;
     }
-
     startPlayback();
     const context = initAudioContext();
     await context.resume();
-
     const wpm = speed[0];
     const dotDuration = 1.2 / wpm;
     const letterGap = dotDuration * 3;
     const wordGap = dotDuration * 7;
     const elementGap = dotDuration;
-
     try {
       do {
         for (let i = 0; i < morseCode.length; i++) {
           if (!isPlayingRef.current) break;
-
           const char = morseCode[i];
           setHighlightIndex(i);
-
+          const textIdx = morseToTextMapping[i];
+          if (textIdx !== undefined) setCurrentTextIndex(textIdx);
           if (char === '.') {
             await playTone('dot', wpm);
           } else if (char === '-') {
@@ -234,7 +196,6 @@ export default function Converter() {
           } else if (char === '/') {
             await sleep(wordGap * 1000);
           }
-
           const next = morseCode[i + 1];
           if (
             (char === '.' || char === '-') &&
@@ -245,7 +206,6 @@ export default function Converter() {
             await sleep(elementGap * 1000);
           }
         }
-
         if (repeat && isPlayingRef.current) await sleep(1000);
       } while (repeat && isPlayingRef.current);
     } catch (err) {
@@ -255,27 +215,21 @@ export default function Converter() {
     }
   };
 
+  // --- File Upload/Download ---
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
-
     reader.onload = () => {
       const arrayBuffer = reader.result as ArrayBuffer;
-
-      // Try UTF-8 first
       let text = '';
       try {
         text = new TextDecoder('utf-8', { fatal: true }).decode(arrayBuffer);
       } catch {
-        // Fallback to ISO-8859-1 if UTF-8 fails
         text = new TextDecoder('iso-8859-1').decode(arrayBuffer);
       }
-
       setInputText(text);
     };
-
     reader.readAsArrayBuffer(file);
   };
 
@@ -293,6 +247,7 @@ export default function Converter() {
     URL.revokeObjectURL(url);
   };
 
+  // --- Keyboard Shortcut for Reset ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -300,16 +255,14 @@ export default function Converter() {
         setInputText('');
         setSpeed([15]);
         setRepeat(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // --- Render ---
   return (
     <div className='relative w-full max-w-2xl mx-auto p-4'>
       <div className='flex justify-end mb-3'>
@@ -326,155 +279,40 @@ export default function Converter() {
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-6'>
-          <div className='space-y-2'>
-            <Label htmlFor='input-text'>Enter Text</Label>
-            <Textarea
-              id='input-text'
-              placeholder='Type your message here...'
-              value={inputText}
-              onChange={handleTextChange}
-              className='min-h-[100px] max-h-40'
-            />
-          </div>
-
-          <div className='space-y-2'>
-            <Label htmlFor='morse-output'>Morse Code</Label>
-            <div className='relative h-[80px] overflow-hidden rounded-md border'>
-              <div
-                id='morse-output-container'
-                className='h-full w-full overflow-y-auto p-2 font-mono bg-muted dark:bg-zinc-800'
-                ref={containerRef}
-              >
-                {morseCode.split('').map((char, idx) => (
-                  <span
-                    key={idx}
-                    className={`inline-block px-[1px] rounded-sm ${
-                      idx === highlightIndex
-                        ? 'bg-red-500/30 text-red-500 font-bold'
-                        : 'text-foreground'
-                    }`}
-                    ref={idx === highlightIndex ? highlightRef : null}
-                  >
-                    {char}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className='space-y-4'>
-            <Label htmlFor='speed-slider'>Speed: {speed[0]} WPM</Label>
-            <Slider
-              id='speed-slider'
-              min={5}
-              max={40}
-              step={1}
-              value={speed}
-              onValueChange={setSpeed}
-            />
-
-            <div className='space-y-2'>
-              <Label htmlFor='freq-slider'>Frequency: {frequency[0]} Hz</Label>
-              <Slider
-                id='freq-slider'
-                min={300}
-                max={1000}
-                step={10}
-                value={frequency}
-                onValueChange={setFrequency}
-                className='w-full'
-              />
-              <div className='flex justify-between text-xs text-muted-foreground'>
-                <span>Low (300 Hz)</span>
-                <span>High (1000 Hz)</span>
-              </div>
-            </div>
-
-            <div className='grid grid-cols-2 md:grid-cols-4 gap-2 items-center'>
-              <Button
-                onClick={playMorseCode}
-                disabled={!morseCode.trim()}
-                className='flex-1'
-              >
-                {isPlaying ? (
-                  <>
-                    <Square className='mr-2 w-4 h-4' />
-                    Stop
-                  </>
-                ) : (
-                  <>
-                    <Play className='mr-2 w-4 h-4' />
-                    Play
-                  </>
-                )}
-              </Button>
-
-              <ResetDialog
-                onConfirm={() => {
-                  stopPlayback();
-                  setInputText('');
-                  setSpeed([15]);
-                  setRepeat(false);
-                  setFrequency([600]);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                trigger={
-                  <Button
-                    variant='secondary'
-                    className='flex items-center bg-red-200 hover:bg-red-300 text-black'
-                    disabled={!morseCode.trim()}
-                  >
-                    Reset
-                  </Button>
-                }
-              />
-
-              <input
-                type='file'
-                accept='.txt'
-                onChange={handleUpload}
-                ref={fileInputRef}
-                className='hidden'
-              />
-              <Button
-                variant='outline'
-                className='flex items-center'
-                onClick={handleUploadClick}
-              >
-                <UploadCloud className='mr-1 h-4 w-4' />
-                Upload
-              </Button>
-
-              <Button
-                variant='outline'
-                onClick={handleDownload}
-                className='flex items-center'
-                disabled={!morseCode.trim()}
-              >
-                <Download className='mr-1 h-4 w-4' />
-                Export
-              </Button>
-            </div>
-
-            <div>
-              <canvas
-                ref={canvasRef}
-                width={500}
-                height={100}
-                className='w-full h-24 bg-black rounded shadow'
-              />
-            </div>
-
-            <div className='flex items-center space-x-2'>
-              <input
-                type='checkbox'
-                id='repeat-toggle'
-                checked={repeat}
-                onChange={() => setRepeat(!repeat)}
-              />
-              <Label htmlFor='repeat-toggle'>Repeat Morse code</Label>
-            </div>
-          </div>
+          <MorseTextDisplay
+            inputText={inputText}
+            currentTextIndex={currentTextIndex}
+            textContainerRef={textContainerRef}
+            textHighlightRef={textHighlightRef}
+            setInputText={setInputText}
+          />
+          <MorseOutputDisplay
+            morseCode={morseCode}
+            highlightIndex={highlightIndex}
+            containerRef={containerRef}
+            highlightRef={highlightRef}
+          />
+          <ControlPanel
+            speed={speed}
+            setSpeed={setSpeed}
+            frequency={frequency}
+            setFrequency={setFrequency}
+            repeat={repeat}
+            setRepeat={setRepeat}
+            playMorseCode={playMorseCode}
+            isPlaying={isPlaying}
+            morseCode={morseCode}
+            stopPlayback={stopPlayback}
+            setInputText={setInputText}
+            fileInputRef={fileInputRef}
+            handleUpload={handleUpload}
+            handleDownload={handleDownload}
+          />
+          <WaveformCanvas
+            canvasRef={canvasRef}
+            isPlaying={isPlaying}
+            analyserRef={analyserRef}
+          />
         </CardContent>
       </Card>
     </div>
