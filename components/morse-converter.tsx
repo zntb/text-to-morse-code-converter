@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,26 +15,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Play, Square, Volume2 } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 
+// Utility sleep function
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default function Converter() {
   const [inputText, setInputText] = useState('');
-  const [morseCode, setMorseCode] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState([15]);
   const [repeat, setRepeat] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const currentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
 
-  const startPlayback = () => {
-    setIsPlaying(true);
-    isPlayingRef.current = true;
-  };
-
-  // Initialize audio context on first user interaction
   const initAudioContext = () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).webkitAudioContext)();
     }
     return audioContextRef.current;
@@ -43,13 +38,8 @@ export default function Converter() {
 
   useEffect(() => {
     return () => {
-      // Cleanup on unmount
       if (audioContextRef.current) {
         audioContextRef.current.close();
-      }
-      if (currentTimeoutRef.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        clearTimeout(currentTimeoutRef.current);
       }
     };
   }, []);
@@ -58,39 +48,51 @@ export default function Converter() {
     return text
       .toUpperCase()
       .split('')
-      .map(char => MORSE_CODE_MAP[char] || char)
+      .map(char => MORSE_CODE_MAP[char] || '?')
       .join(' ');
   }, []);
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    setInputText(text);
-    setMorseCode(convertToMorse(text));
-  };
+  const morseCode = useMemo(
+    () => convertToMorse(inputText),
+    [inputText, convertToMorse],
+  );
+
+  const handleTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInputText(e.target.value);
+    },
+    [],
+  );
 
   const playTone = async (type: 'dot' | 'dash', wpm: number): Promise<void> => {
     const context = initAudioContext();
-    if (context.state === 'suspended') {
-      await context.resume();
-    }
+    if (context.state === 'suspended') await context.resume();
 
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(600, context.currentTime);
+    gainNode.gain.setValueAtTime(0.2, context.currentTime);
 
     oscillator.connect(gainNode);
     gainNode.connect(context.destination);
 
     const duration = type === 'dot' ? 1.2 / wpm : 3.6 / wpm;
-    const frequency = 600;
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-    gainNode.gain.setValueAtTime(0.2, context.currentTime);
-
     oscillator.start();
     oscillator.stop(context.currentTime + duration);
 
-    await new Promise(resolve => setTimeout(resolve, duration * 1000));
+    await sleep(duration * 1000);
+  };
+
+  const startPlayback = () => {
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+  };
+
+  const stopPlayback = () => {
+    setIsPlaying(false);
+    isPlayingRef.current = false;
   };
 
   const playMorseCode = async () => {
@@ -102,6 +104,7 @@ export default function Converter() {
     startPlayback();
     const context = initAudioContext();
     await context.resume();
+
     const wpm = speed[0];
     const dotDuration = 1.2 / wpm;
     const letterGap = dotDuration * 3;
@@ -114,32 +117,30 @@ export default function Converter() {
           if (!isPlayingRef.current) break;
 
           const char = morseCode[i];
+          const next = morseCode[i + 1];
 
           if (char === '.') {
             await playTone('dot', wpm);
           } else if (char === '-') {
             await playTone('dash', wpm);
           } else if (char === ' ') {
-            await new Promise(resolve => setTimeout(resolve, letterGap * 1000));
+            await sleep(letterGap * 1000);
           } else if (char === '/') {
-            await new Promise(resolve => setTimeout(resolve, wordGap * 1000));
+            await sleep(wordGap * 1000);
           }
 
-          const next = morseCode[i + 1];
           if (
             (char === '.' || char === '-') &&
+            next &&
             next !== ' ' &&
-            next !== '/' &&
-            next
+            next !== '/'
           ) {
-            await new Promise(resolve =>
-              setTimeout(resolve, elementGap * 1000),
-            );
+            await sleep(elementGap * 1000);
           }
         }
 
         if (repeat && isPlayingRef.current) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // ⏸ Pause between loops
+          await sleep(1000); // Pause before repeating
         }
       } while (repeat && isPlayingRef.current);
     } catch (err) {
@@ -147,11 +148,6 @@ export default function Converter() {
     } finally {
       stopPlayback();
     }
-  };
-
-  const stopPlayback = () => {
-    setIsPlaying(false);
-    isPlayingRef.current = false;
   };
 
   return (
