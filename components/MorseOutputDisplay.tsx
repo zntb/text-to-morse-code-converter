@@ -1,5 +1,5 @@
 import { Label } from '@/components/ui/label';
-import React from 'react';
+import React, { memo } from 'react';
 
 interface MorseOutputDisplayProps {
   morseCode: string;
@@ -8,7 +8,7 @@ interface MorseOutputDisplayProps {
   highlightRef: React.RefObject<HTMLSpanElement | null>;
 }
 
-export default function MorseOutputDisplay({
+const MorseOutputDisplay = memo(function MorseOutputDisplay({
   morseCode,
   highlightIndex,
   containerRef,
@@ -24,20 +24,41 @@ export default function MorseOutputDisplay({
           ref={containerRef}
         >
           {morseCode.split('').map((char, idx) => (
-            <span
+            <MorseChar
               key={idx}
-              className={`inline-block px-[1px] rounded-sm ${
-                idx === highlightIndex
-                  ? 'bg-red-500/30 text-red-500 font-bold'
-                  : 'text-foreground'
-              }`}
-              ref={idx === highlightIndex ? highlightRef : null}
-            >
-              {char}
-            </span>
+              char={char}
+              isHighlighted={idx === highlightIndex}
+              ref={idx === highlightIndex ? highlightRef : undefined}
+            />
           ))}
         </div>
       </div>
     </div>
   );
+});
+
+interface MorseCharProps {
+  char: string;
+  isHighlighted: boolean;
 }
+
+const MorseChar = memo(
+  React.forwardRef<HTMLSpanElement, MorseCharProps>(
+    ({ char, isHighlighted }, ref) => {
+      return (
+        <span
+          ref={ref}
+          className={`inline-block px-[1px] rounded-sm ${
+            isHighlighted
+              ? 'bg-red-500/30 text-red-500 font-bold'
+              : 'text-foreground'
+          }`}
+        >
+          {char}
+        </span>
+      );
+    },
+  ),
+);
+
+export default MorseOutputDisplay;

@@ -1,6 +1,13 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+} from 'react';
 
 import {
   Card,
@@ -18,6 +25,7 @@ import MorseTextDisplay from './MorseTextDisplay';
 import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
+import { debounce } from '@/lib/utils';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -65,25 +73,52 @@ export default function Converter() {
     }
   }, [highlightIndex]);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   if (
+  //     currentTextIndex !== null &&
+  //     textHighlightRef.current &&
+  //     textContainerRef.current
+  //   ) {
+  //     const container = textContainerRef.current;
+  //     const highlight = textHighlightRef.current;
+  //     const scrollTop = container.scrollTop;
+  //     const containerHeight = container.clientHeight;
+  //     const highlightTop = highlight.offsetTop;
+  //     const highlightHeight = highlight.clientHeight;
+  //     if (highlightTop < scrollTop) {
+  //       container.scrollTop = highlightTop;
+  //     } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
+  //       container.scrollTop = highlightTop - containerHeight + highlightHeight;
+  //     }
+  //   }
+  // }, [currentTextIndex]);
+
+  useLayoutEffect(() => {
     if (
-      currentTextIndex !== null &&
-      textHighlightRef.current &&
-      textContainerRef.current
+      highlightIndex !== null &&
+      highlightRef.current &&
+      containerRef.current
     ) {
-      const container = textContainerRef.current;
-      const highlight = textHighlightRef.current;
+      const container = containerRef.current;
+      const highlight = highlightRef.current;
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
       const highlightTop = highlight.offsetTop;
       const highlightHeight = highlight.clientHeight;
+
       if (highlightTop < scrollTop) {
         container.scrollTop = highlightTop;
       } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
         container.scrollTop = highlightTop - containerHeight + highlightHeight;
       }
     }
-  }, [currentTextIndex]);
+  }, [highlightIndex]);
+
+  // Inside your Converter component
+  const debouncedSetInputText = useMemo(
+    () => debounce((text: string) => setInputText(text), 300),
+    [],
+  );
 
   // --- Audio Context ---
   const initAudioContext = () => {
@@ -284,7 +319,7 @@ export default function Converter() {
             currentTextIndex={currentTextIndex}
             textContainerRef={textContainerRef}
             textHighlightRef={textHighlightRef}
-            setInputText={setInputText}
+            setInputText={debouncedSetInputText}
           />
           <MorseOutputDisplay
             morseCode={morseCode}

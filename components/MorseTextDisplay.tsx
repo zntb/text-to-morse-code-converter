@@ -1,16 +1,16 @@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import React from 'react';
+import React, { memo } from 'react';
 
 interface MorseTextDisplayProps {
   inputText: string;
   currentTextIndex: number | null;
   textContainerRef: React.RefObject<HTMLDivElement | null>;
-  textHighlightRef: React.RefObject<HTMLSpanElement>;
+  textHighlightRef: React.RefObject<HTMLSpanElement | null>;
   setInputText: (value: string) => void;
 }
 
-export default function MorseTextDisplay({
+const MorseTextDisplay = memo(function MorseTextDisplay({
   inputText,
   currentTextIndex,
   textContainerRef,
@@ -49,4 +49,6 @@ export default function MorseTextDisplay({
       />
     </div>
   );
-}
+});
+
+export default MorseTextDisplay;
