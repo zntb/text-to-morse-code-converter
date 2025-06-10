@@ -35,6 +35,37 @@ export default function Converter() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (
+      highlightIndex !== null &&
+      highlightRef.current &&
+      containerRef.current
+    ) {
+      const container = containerRef.current;
+      const highlight = highlightRef.current;
+
+      // const containerRect = container.getBoundingClientRect();
+      // const highlightRect = highlight.getBoundingClientRect();
+
+      // Calculate scroll position
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const highlightTop = highlight.offsetTop;
+      const highlightHeight = highlight.clientHeight;
+
+      if (highlightTop < scrollTop) {
+        // Scroll up if highlight is above view
+        container.scrollTop = highlightTop;
+      } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
+        // Scroll down if highlight is below view
+        container.scrollTop = highlightTop - containerHeight + highlightHeight;
+      }
+    }
+  }, [highlightIndex]);
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -302,24 +333,33 @@ export default function Converter() {
               placeholder='Type your message here...'
               value={inputText}
               onChange={handleTextChange}
-              className='min-h-[100px]'
+              className='min-h-[100px] max-h-40'
             />
           </div>
 
           <div className='space-y-2'>
             <Label htmlFor='morse-output'>Morse Code</Label>
-            <Textarea
-              id='morse-output'
-              value={morseCode
-                .split('')
-                .map((char, idx) =>
-                  idx === highlightIndex ? `🔴${char}🔴` : char,
-                )
-                .join('')}
-              readOnly
-              className='min-h-[100px] font-mono bg-muted dark:bg-zinc-800'
-              placeholder='Morse code will appear here...'
-            />
+            <div className='relative h-[80px] overflow-hidden rounded-md border'>
+              <div
+                id='morse-output-container'
+                className='h-full w-full overflow-y-auto p-2 font-mono bg-muted dark:bg-zinc-800'
+                ref={containerRef}
+              >
+                {morseCode.split('').map((char, idx) => (
+                  <span
+                    key={idx}
+                    className={`inline-block px-[1px] rounded-sm ${
+                      idx === highlightIndex
+                        ? 'bg-red-500/30 text-red-500 font-bold'
+                        : 'text-foreground'
+                    }`}
+                    ref={idx === highlightIndex ? highlightRef : null}
+                  >
+                    {char}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className='space-y-4'>
