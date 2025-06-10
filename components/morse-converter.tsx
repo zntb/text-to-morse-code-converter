@@ -14,7 +14,8 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Play, Square, Volume2, UploadCloud, Download } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import ResetDialog from './ResetDialog';
+import ResetDialog from './reset-dialog';
+import { ModeToggle } from './mode-toggle';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -279,7 +280,10 @@ export default function Converter() {
   }, []);
 
   return (
-    <div className='w-full max-w-2xl mx-auto p-4'>
+    <div className='relative w-full max-w-2xl mx-auto p-4'>
+      <div className='flex justify-end mb-3'>
+        <ModeToggle />
+      </div>
       <Card className='dark:bg-zinc-900 dark:text-white'>
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
@@ -377,7 +381,7 @@ export default function Converter() {
                 trigger={
                   <Button
                     variant='secondary'
-                    className='flex items-center bg-red-200 hover:bg-red-300'
+                    className='flex items-center bg-red-200 hover:bg-red-300 text-black'
                     disabled={!morseCode.trim()}
                   >
                     Reset
