@@ -48,6 +48,7 @@ export default function Converter() {
         audioContextRef.current.close();
       }
       if (currentTimeoutRef.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         clearTimeout(currentTimeoutRef.current);
       }
     };
