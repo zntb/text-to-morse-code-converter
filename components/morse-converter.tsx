@@ -30,6 +30,9 @@ export default function Converter() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -39,6 +42,9 @@ export default function Converter() {
       audioContextRef.current = new (window.AudioContext ||
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).webkitAudioContext)();
+
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 1024;
     }
     return audioContextRef.current;
   };
@@ -48,6 +54,63 @@ export default function Converter() {
       if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
+
+  useEffect(() => {
+    let animationId: number | undefined;
+
+    const drawWaveform = () => {
+      const canvas = canvasRef.current;
+      const analyser = analyserRef.current;
+      if (!canvas || !analyser) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const bufferLength = analyser.fftSize;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const draw = () => {
+        animationId = requestAnimationFrame(draw);
+        analyser.getByteTimeDomainData(dataArray);
+
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'lime';
+        ctx.beginPath();
+
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0;
+          const y = (v * canvas.height) / 2;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+          x += sliceWidth;
+        }
+
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+      };
+
+      draw();
+    };
+
+    if (isPlaying) drawWaveform();
+    else if (animationId !== undefined) cancelAnimationFrame(animationId);
+
+    return () => {
+      if (animationId !== undefined) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [isPlaying]);
 
   const convertToMorse = useCallback((text: string) => {
     return text
@@ -78,6 +141,10 @@ export default function Converter() {
 
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
+
+    oscillator.connect(analyserRef.current!);
+    analyserRef.current!.connect(gainNode);
+    gainNode.connect(context.destination);
 
     gainNode.gain.setValueAtTime(0.2, context.currentTime);
     oscillator.connect(gainNode);
@@ -261,7 +328,7 @@ export default function Converter() {
               </div>
             </div>
 
-            <div className='flex gap-2 items-center'>
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-2 items-center'>
               <Button
                 onClick={playMorseCode}
                 disabled={!morseCode.trim()}
@@ -280,32 +347,57 @@ export default function Converter() {
                 )}
               </Button>
 
-              <div>
-                <input
-                  type='file'
-                  accept='.txt'
-                  onChange={handleUpload}
-                  ref={fileInputRef}
-                  className='hidden'
-                />
-                <Button
-                  variant='outline'
-                  className='flex items-center'
-                  onClick={handleUploadClick}
-                >
-                  <UploadCloud className='mr-1 h-4 w-4' />
-                  Upload
-                </Button>
-              </div>
+              <Button
+                variant='secondary'
+                onClick={() => {
+                  stopPlayback(); // stop Morse playback
+                  setInputText(''); // clear text
+                  setSpeed([15]); // reset speed to default
+                  setRepeat(false); // uncheck repeat
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = ''; // clear uploaded file
+                  }
+                }}
+                className='flex items-center bg-red-200 hover:bg-red-300'
+                disabled={!morseCode.trim()}
+              >
+                Reset
+              </Button>
+
+              <input
+                type='file'
+                accept='.txt'
+                onChange={handleUpload}
+                ref={fileInputRef}
+                className='hidden'
+              />
+              <Button
+                variant='outline'
+                className='flex items-center'
+                onClick={handleUploadClick}
+              >
+                <UploadCloud className='mr-1 h-4 w-4' />
+                Upload
+              </Button>
 
               <Button
                 variant='outline'
                 onClick={handleDownload}
                 className='flex items-center'
+                disabled={!morseCode.trim()}
               >
                 <Download className='mr-1 h-4 w-4' />
                 Export
               </Button>
+            </div>
+
+            <div>
+              <canvas
+                ref={canvasRef}
+                width={500}
+                height={100}
+                className='w-full h-24 bg-black rounded shadow'
+              />
             </div>
 
             <div className='flex items-center space-x-2'>
