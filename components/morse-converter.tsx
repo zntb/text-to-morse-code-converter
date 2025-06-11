@@ -26,24 +26,9 @@ import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
 import { debounce } from '@/lib/utils';
+import { AUDIO_CONFIG, TIMING_CONFIG } from '@/lib/constants';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Constants for better maintainability
-const AUDIO_CONFIG = {
-  GAIN: 0.2,
-  FFT_SIZE: 1024,
-  FADE_TIME: 0.01, // Small fade to prevent audio clicks
-} as const;
-
-const TIMING_CONFIG = {
-  DOT_MULTIPLIER: 1.2,
-  DASH_MULTIPLIER: 3.6,
-  LETTER_GAP_MULTIPLIER: 3,
-  WORD_GAP_MULTIPLIER: 7,
-  ELEMENT_GAP_MULTIPLIER: 1,
-  REPEAT_DELAY: 1000,
-} as const;
 
 export default function Converter() {
   // --- State Management ---
@@ -68,6 +53,7 @@ export default function Converter() {
   const playbackAbortControllerRef = useRef<AbortController | null>(null);
 
   // --- Debounced Input Handler (Moved to useCallback for stability) ---
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSetInputText = useCallback(
     debounce((text: string) => setInputText(text), 300),
     [],
