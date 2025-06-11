@@ -73,26 +73,6 @@ export default function Converter() {
     }
   }, [highlightIndex]);
 
-  // useEffect(() => {
-  //   if (
-  //     currentTextIndex !== null &&
-  //     textHighlightRef.current &&
-  //     textContainerRef.current
-  //   ) {
-  //     const container = textContainerRef.current;
-  //     const highlight = textHighlightRef.current;
-  //     const scrollTop = container.scrollTop;
-  //     const containerHeight = container.clientHeight;
-  //     const highlightTop = highlight.offsetTop;
-  //     const highlightHeight = highlight.clientHeight;
-  //     if (highlightTop < scrollTop) {
-  //       container.scrollTop = highlightTop;
-  //     } else if (highlightTop + highlightHeight > scrollTop + containerHeight) {
-  //       container.scrollTop = highlightTop - containerHeight + highlightHeight;
-  //     }
-  //   }
-  // }, [currentTextIndex]);
-
   useLayoutEffect(() => {
     if (
       highlightIndex !== null &&
