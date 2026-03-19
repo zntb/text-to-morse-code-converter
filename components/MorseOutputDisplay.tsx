@@ -1,6 +1,14 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
+import { Copy, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface MorseOutputDisplayProps {
   morseCode: string;
@@ -10,6 +18,11 @@ interface MorseOutputDisplayProps {
   currentDotDashType: 'dot' | 'dash' | null;
 }
 
+// Convert morse code to audio format representation
+const convertToAudioFormat = (morse: string): string => {
+  return morse.replace(/\./g, '·').replace(/-/g, '—').replace(/ /g, ' | ');
+};
+
 const MorseOutputDisplay = memo(function MorseOutputDisplay({
   morseCode,
   highlightIndex,
@@ -17,10 +30,54 @@ const MorseOutputDisplay = memo(function MorseOutputDisplay({
   highlightRef,
   currentDotDashType,
 }: MorseOutputDisplayProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (format: 'standard' | 'audio') => {
+    const textToCopy =
+      format === 'audio' ? convertToAudioFormat(morseCode) : morseCode;
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div className='space-y-3'>
-      {/* Morse Code Display */}
+      {/* Morse Code Display with Copy Button */}
       <div className='relative min-h-[80px] overflow-hidden rounded-lg border bg-muted/30'>
+        {/* Copy Button */}
+        {morseCode.length > 0 && (
+          <div className='absolute top-2 right-2 z-10'>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='h-8 w-8'
+                  title='Copy morse code'
+                >
+                  {copied ? (
+                    <Check className='h-4 w-4 text-green-500' />
+                  ) : (
+                    <Copy className='h-4 w-4' />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='end'>
+                <DropdownMenuItem onClick={() => handleCopy('standard')}>
+                  Copy as dots/dashes (.-)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCopy('audio')}>
+                  Copy as audio (· —)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
         <div
           id='morse-output-container'
           className='h-full w-full overflow-y-auto p-4 font-mono text-2xl leading-relaxed tracking-widest'

@@ -43,7 +43,7 @@
 - Characters per minute (CPM) / Words per minute (WPM) display
 - Session statistics (total characters played, time spent)
 
-### 8. **Copy to Clipboard**
+### 8. **Copy to Clipboard**✅
 
 - Add one-click **copy button** for the morse output
 - Include "Copy as audio" option for formatted representation like `· – —`
