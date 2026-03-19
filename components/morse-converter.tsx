@@ -24,6 +24,7 @@ import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
 import PracticeQuiz from './PracticeQuiz';
+import PlaybackProgress from './PlaybackProgress';
 // Preset messages interface
 interface PresetMessage {
   id: string;
@@ -75,6 +76,32 @@ export default function Converter() {
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [newPresetText, setNewPresetText] = useState('');
+
+  // Session statistics state
+  const [sessionStats, setSessionStats] = useState({
+    totalCharactersPlayed: 0,
+    totalTimeSpent: 0, // in seconds
+  });
+
+  // Track session time
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setSessionStats(prev => ({
+          ...prev,
+          totalTimeSpent: prev.totalTimeSpent + 1,
+        }));
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isPlaying]);
 
   // Load custom presets from localStorage
   useEffect(() => {
@@ -149,6 +176,7 @@ export default function Converter() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const charactersPlayedThisRunRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -684,6 +712,10 @@ export default function Converter() {
       const wordGap = dotDuration * TIMING_CONFIG.WORD_GAP_MULTIPLIER;
       const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
 
+      // Track unique text characters played in this playback session
+      charactersPlayedThisRunRef.current = 0;
+      const uniqueCharsPlayed = new Set<number>();
+
       do {
         for (let i = 0; i < morseCode.length && isPlayingRef.current; i++) {
           if (abortSignal.aborted) break;
@@ -694,6 +726,11 @@ export default function Converter() {
           const textIdx = morseToTextMapping[i];
           if (textIdx !== undefined) {
             setCurrentTextIndex(textIdx);
+            // Track unique characters played
+            if (!uniqueCharsPlayed.has(textIdx)) {
+              uniqueCharsPlayed.add(textIdx);
+              charactersPlayedThisRunRef.current++;
+            }
           }
 
           switch (char) {
@@ -737,6 +774,17 @@ export default function Converter() {
         console.error('Playback error:', error);
       }
     } finally {
+      // Update session stats with characters played
+      setSessionStats(prev => ({
+        ...prev,
+        totalCharactersPlayed:
+          prev.totalCharactersPlayed +
+          (charactersPlayedThisRunRef.current || 0),
+      }));
+
+      // Reset the ref for next run
+      charactersPlayedThisRunRef.current = 0;
+
       setIsPlaying(false);
       isPlayingRef.current = false;
       setHighlightIndex(null);
@@ -1142,6 +1190,18 @@ export default function Converter() {
                 canvasRef={canvasRef}
                 isPlaying={isPlaying}
                 analyserRef={analyserRef}
+              />
+            </div>
+          )}
+
+          {/* Playback Progress & Statistics - Only for Text to Morse mode */}
+          {conversionMode === 'text-to-morse' && (
+            <div className='animate-fade-in-up stagger-3'>
+              <PlaybackProgress
+                currentIndex={highlightIndex}
+                totalLength={morseCode.length}
+                speed={speed}
+                sessionStats={sessionStats}
               />
             </div>
           )}
