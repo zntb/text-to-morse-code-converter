@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowRightLeft, Mic, FileAudio } from 'lucide-react';
+import { ArrowRightLeft, Mic, FileAudio, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export type ConversionMode = 'text-to-morse' | 'morse-to-text';
+export type ConversionMode = 'text-to-morse' | 'morse-to-text' | 'practice';
 
 interface ConversionModeToggleProps {
   mode: ConversionMode;
@@ -40,6 +40,17 @@ export function ConversionModeToggle({
       >
         <ArrowRightLeft className='h-4 w-4 rotate-180' />
         <span className='hidden sm:inline'>Morse → Text</span>
+      </Button>
+
+      <Button
+        variant={mode === 'practice' ? 'default' : 'outline'}
+        size='sm'
+        onClick={() => setMode('practice')}
+        className='gap-2'
+        title='Practice and learn Morse code'
+      >
+        <GraduationCap className='h-4 w-4' />
+        <span className='hidden sm:inline'>Practice</span>
       </Button>
     </div>
   );

@@ -23,6 +23,7 @@ import MorseTextDisplay from './MorseTextDisplay';
 import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
+import PracticeQuiz from './PracticeQuiz';
 // Preset messages interface
 interface PresetMessage {
   id: string;
@@ -49,7 +50,7 @@ export default function Converter() {
 
   // Conversion mode state
   const [conversionMode, setConversionMode] = useState<
-    'text-to-morse' | 'morse-to-text'
+    'text-to-morse' | 'morse-to-text' | 'practice'
   >('text-to-morse');
   const [audioInputMode, setAudioInputMode] =
     useState<AudioInputMode>('microphone');
@@ -1023,7 +1024,11 @@ export default function Converter() {
       {/* Main Content */}
       <main className='container mx-auto px-4 py-6'>
         <div className='mx-auto max-w-3xl space-y-6'>
-          {conversionMode === 'text-to-morse' ? (
+          {conversionMode === 'practice' ? (
+            <div className='animate-fade-in-up'>
+              <PracticeQuiz />
+            </div>
+          ) : conversionMode === 'text-to-morse' ? (
             <>
               {/* Text to Morse Mode */}
               {/* Input Section */}
@@ -1134,40 +1139,42 @@ export default function Converter() {
             </div>
           )}
 
-          {/* Control Panel - Only for Text to Morse mode */}
-          {conversionMode === 'text-to-morse' && showControls && (
-            <div className='animate-fade-in-up stagger-5'>
-              <Card className='overflow-hidden'>
-                <CardContent className='pt-6'>
-                  <ControlPanel
-                    speed={speed}
-                    setSpeed={setSpeed}
-                    frequency={frequency}
-                    setFrequency={setFrequency}
-                    volume={volume}
-                    setVolume={setVolume}
-                    repeat={repeat}
-                    setRepeat={setRepeat}
-                    playMorseCode={playMorseCode}
-                    isPlaying={isPlaying}
-                    morseCode={morseCode}
-                    stopPlayback={() => {
-                      playbackAbortControllerRef.current?.abort();
-                      setIsPlaying(false);
-                      isPlayingRef.current = false;
-                      setHighlightIndex(null);
-                      setCurrentTextIndex(null);
-                    }}
-                    setInputText={setInputText}
-                    fileInputRef={fileInputRef}
-                    handleUpload={handleUpload}
-                    handleDownload={handleDownload}
-                    exportAsWav={exportAsWav}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Control Panel - Only for Text to Morse and Morse to Text modes */}
+          {(conversionMode === 'text-to-morse' ||
+            conversionMode === 'morse-to-text') &&
+            showControls && (
+              <div className='animate-fade-in-up stagger-5'>
+                <Card className='overflow-hidden'>
+                  <CardContent className='pt-6'>
+                    <ControlPanel
+                      speed={speed}
+                      setSpeed={setSpeed}
+                      frequency={frequency}
+                      setFrequency={setFrequency}
+                      volume={volume}
+                      setVolume={setVolume}
+                      repeat={repeat}
+                      setRepeat={setRepeat}
+                      playMorseCode={playMorseCode}
+                      isPlaying={isPlaying}
+                      morseCode={morseCode}
+                      stopPlayback={() => {
+                        playbackAbortControllerRef.current?.abort();
+                        setIsPlaying(false);
+                        isPlayingRef.current = false;
+                        setHighlightIndex(null);
+                        setCurrentTextIndex(null);
+                      }}
+                      setInputText={setInputText}
+                      fileInputRef={fileInputRef}
+                      handleUpload={handleUpload}
+                      handleDownload={handleDownload}
+                      exportAsWav={exportAsWav}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
           <ConverterFooter />
         </div>

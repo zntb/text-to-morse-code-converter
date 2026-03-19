@@ -36,7 +36,9 @@ export default function ConverterHeader({
             <p className='text-xs text-muted-foreground hidden sm:block'>
               {conversionMode === 'text-to-morse'
                 ? 'Text to Morse Code'
-                : 'Morse Code to Text'}
+                : conversionMode === 'morse-to-text'
+                ? 'Morse Code to Text'
+                : 'Practice / Learn Mode'}
             </p>
           </div>
         </div>

@@ -25,7 +25,7 @@
   - 73 (best regards)
   - Custom saved presets
 
-### 5. **Practice/Learn Mode**
+### 5. **Practice/Learn Mode**✅
 
 - Quiz system to test users on morse code characters
 - Display random characters and track accuracy
