@@ -709,6 +709,179 @@ export default function Converter() {
     reader.readAsArrayBuffer(file);
   }, []);
 
+  // --- WAV Export Function ---
+  const exportAsWav = useCallback(async () => {
+    if (!morseCode.trim()) return;
+
+    try {
+      const sampleRate = 44100;
+      const wpm = speed[0];
+      const freq = frequency[0];
+      const dotDuration = TIMING_CONFIG.DOT_MULTIPLIER / wpm;
+      const letterGap = dotDuration * TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
+      const wordGap = dotDuration * TIMING_CONFIG.WORD_GAP_MULTIPLIER;
+      const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
+      const fadeTime = AUDIO_CONFIG.FADE_TIME;
+
+      // Calculate total duration
+      let totalDuration = 0;
+      for (let i = 0; i < morseCode.length; i++) {
+        const char = morseCode[i];
+        switch (char) {
+          case '.':
+            totalDuration += dotDuration + elementGap;
+            break;
+          case '-':
+            totalDuration += TIMING_CONFIG.DASH_MULTIPLIER / wpm + elementGap;
+            break;
+          case ' ':
+            totalDuration += letterGap;
+            break;
+          case '/':
+            totalDuration += wordGap;
+            break;
+        }
+      }
+
+      // Add some padding at the end
+      totalDuration += 0.5;
+
+      const numSamples = Math.ceil(totalDuration * sampleRate);
+      const offlineContext = new OfflineAudioContext(1, numSamples, sampleRate);
+
+      // Generate the morse code audio
+      let currentTime = 0;
+      for (let i = 0; i < morseCode.length; i++) {
+        const char = morseCode[i];
+        let duration = 0;
+
+        switch (char) {
+          case '.':
+            duration = dotDuration;
+            break;
+          case '-':
+            duration = TIMING_CONFIG.DASH_MULTIPLIER / wpm;
+            break;
+          case ' ':
+            duration = letterGap;
+            break;
+          case '/':
+            duration = wordGap;
+            break;
+        }
+
+        // Create oscillator for tones
+        if (char === '.' || char === '-') {
+          const oscillator = offlineContext.createOscillator();
+          const gainNode = offlineContext.createGain();
+
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(freq, currentTime);
+
+          // Apply fade in/out
+          const fadeEnd = Math.min(fadeTime, duration / 2);
+          gainNode.gain.setValueAtTime(0, currentTime);
+          gainNode.gain.linearRampToValueAtTime(
+            AUDIO_CONFIG.GAIN,
+            currentTime + fadeEnd,
+          );
+          gainNode.gain.linearRampToValueAtTime(
+            AUDIO_CONFIG.GAIN,
+            currentTime + duration - fadeEnd,
+          );
+          gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
+
+          oscillator.connect(gainNode);
+          gainNode.connect(offlineContext.destination);
+
+          oscillator.start(currentTime);
+          oscillator.stop(currentTime + duration);
+        }
+
+        currentTime += duration;
+      }
+
+      // Render audio
+      const audioBuffer = await offlineContext.startRendering();
+
+      // Convert to WAV
+      const wavBlob = audioBufferToWav(audioBuffer);
+
+      // Trigger download
+      const url = URL.createObjectURL(wavBlob);
+      const link = document.createElement('a');
+      link.download = `morse_code_${new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')}.wav`;
+      link.href = url;
+      link.style.display = 'none';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('WAV export failed:', error);
+    }
+  }, [morseCode, speed, frequency]);
+
+  // Helper function to convert AudioBuffer to WAV format
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+
+    // WAV header
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, bufferLength - 8, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    // Write audio data
+    const channelData: Float32Array[] = [];
+    for (let i = 0; i < numChannels; i++) {
+      channelData.push(buffer.getChannelData(i));
+    }
+
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let channel = 0; channel < numChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+        const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(offset, int16, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  };
+
   const handleDownload = useCallback(() => {
     try {
       const content = `Original Text:\n${inputText}\n\nMorse Code:\n${morseCode}`;
@@ -1168,6 +1341,7 @@ export default function Converter() {
                     fileInputRef={fileInputRef}
                     handleUpload={handleUpload}
                     handleDownload={handleDownload}
+                    exportAsWav={exportAsWav}
                   />
                 </CardContent>
               </Card>

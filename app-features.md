@@ -1,12 +1,12 @@
 ## Recommended Improvements for Morse Code Converter
 
-### 1. **Bidirectional Conversion (High Priority)**
+### 1. **Bidirectional Conversion (High Priority)**✅
 
 - Add **Morse-to-Text** mode to convert incoming morse code (from microphone or audio file) back to text
 - Implement real-time audio input recognition using Web Audio API
 - This would make the app useful for both encoding and decoding
 
-### 2. **Audio Export Feature**
+### 2. **Audio Export Feature**✅
 
 - Add ability to **export as WAV file** using the Web Audio API's MediaRecorder or OfflineAudioContext
 - Allow users to download the generated morse code as an audio file for use in other applications

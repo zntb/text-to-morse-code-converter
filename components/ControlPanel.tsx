@@ -10,6 +10,7 @@ import {
   Download,
   RotateCcw,
   Repeat,
+  Volume2,
 } from 'lucide-react';
 import ResetDialog from './reset-dialog';
 import React from 'react';
@@ -29,6 +30,7 @@ interface ControlPanelProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleDownload: () => void;
+  exportAsWav: () => void;
 }
 
 export default function ControlPanel({
@@ -46,6 +48,7 @@ export default function ControlPanel({
   fileInputRef,
   handleUpload,
   handleDownload,
+  exportAsWav,
 }: ControlPanelProps) {
   const hasContent = morseCode.trim();
 
@@ -180,6 +183,17 @@ export default function ControlPanel({
           >
             <Download className='h-3 w-3' />
             Export
+          </Button>
+
+          <Button
+            variant='outline'
+            size='sm'
+            className='w-full gap-1'
+            onClick={exportAsWav}
+            disabled={!hasContent}
+          >
+            <Volume2 className='h-3 w-3' />
+            Audio
           </Button>
 
           <Button
