@@ -16,7 +16,7 @@
 - Currently the gain is fixed at 0.2 in [`lib/constants.ts`](lib/constants.ts:3)
 - Add a **volume slider** to the ControlPanel component for user-adjustable audio levels
 
-### 4. **Preset Messages**
+### 4. **Preset Messages**✅
 
 - Add quick-access buttons for common morse messages like:
   - SOS (... --- ...)
