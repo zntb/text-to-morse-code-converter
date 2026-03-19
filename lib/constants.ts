@@ -1,9 +1,12 @@
 // Constants for better maintainability
 export const AUDIO_CONFIG = {
-  GAIN: 0.2,
+  DEFAULT_GAIN: 0.2,
   FFT_SIZE: 1024,
   FADE_TIME: 0.01, // Small fade to prevent audio clicks
 } as const;
+
+// Helper to get the gain value (can be overridden with volume parameter)
+export const getGain = (volume?: number) => volume ?? AUDIO_CONFIG.DEFAULT_GAIN;
 
 export const TIMING_CONFIG = {
   DOT_MULTIPLIER: 1.2,

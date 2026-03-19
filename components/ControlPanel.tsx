@@ -20,6 +20,8 @@ interface ControlPanelProps {
   setSpeed: (val: number[]) => void;
   frequency: number[];
   setFrequency: (val: number[]) => void;
+  volume: number[];
+  setVolume: (val: number[]) => void;
   repeat: boolean;
   setRepeat: (flag: boolean) => void;
   playMorseCode: () => void;
@@ -38,6 +40,8 @@ export default function ControlPanel({
   setSpeed,
   frequency,
   setFrequency,
+  volume,
+  setVolume,
   repeat,
   setRepeat,
   playMorseCode,
@@ -54,8 +58,8 @@ export default function ControlPanel({
 
   return (
     <div className='space-y-6'>
-      {/* Speed and Frequency Sliders */}
-      <div className='grid gap-6 sm:grid-cols-2'>
+      {/* Speed, Frequency, and Volume Sliders */}
+      <div className='grid gap-6 sm:grid-cols-3'>
         {/* Speed Control */}
         <div className='space-y-3'>
           <div className='flex items-center justify-between'>
@@ -103,6 +107,31 @@ export default function ControlPanel({
           <div className='flex justify-between text-xs text-muted-foreground'>
             <span>300 Hz</span>
             <span>1000 Hz</span>
+          </div>
+        </div>
+
+        {/* Volume Control */}
+        <div className='space-y-3'>
+          <div className='flex items-center justify-between'>
+            <Label htmlFor='volume-slider' className='text-sm font-medium'>
+              Volume
+            </Label>
+            <span className='rounded-md bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary'>
+              {volume[0]}%
+            </span>
+          </div>
+          <Slider
+            id='volume-slider'
+            min={0}
+            max={100}
+            step={1}
+            value={volume}
+            onValueChange={setVolume}
+            className='py-1'
+          />
+          <div className='flex justify-between text-xs text-muted-foreground'>
+            <span>0%</span>
+            <span>100%</span>
           </div>
         </div>
       </div>

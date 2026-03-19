@@ -11,7 +11,7 @@
 - Add ability to **export as WAV file** using the Web Audio API's MediaRecorder or OfflineAudioContext
 - Allow users to download the generated morse code as an audio file for use in other applications
 
-### 3. **Volume Control**
+### 3. **Volume Control**✅
 
 - Currently the gain is fixed at 0.2 in [`lib/constants.ts`](lib/constants.ts:3)
 - Add a **volume slider** to the ControlPanel component for user-adjustable audio levels

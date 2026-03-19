@@ -26,7 +26,7 @@ import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
 import { debounce } from '@/lib/utils';
-import { AUDIO_CONFIG, TIMING_CONFIG } from '@/lib/constants';
+import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -39,6 +39,7 @@ export default function Converter() {
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
   const [currentTextIndex, setCurrentTextIndex] = useState<number | null>(null);
   const [frequency, setFrequency] = useState([600]);
+  const [volume, setVolume] = useState([20]);
   const [showControls, setShowControls] = useState(true);
 
   // Conversion mode state
@@ -533,12 +534,13 @@ export default function Converter() {
           : TIMING_CONFIG.DASH_MULTIPLIER / wpm;
 
       gainNode.gain.setValueAtTime(0, currentTime);
+      const gainValue = getGain(volume[0] / 100);
       gainNode.gain.linearRampToValueAtTime(
-        AUDIO_CONFIG.GAIN,
+        gainValue,
         currentTime + AUDIO_CONFIG.FADE_TIME,
       );
       gainNode.gain.linearRampToValueAtTime(
-        AUDIO_CONFIG.GAIN,
+        gainValue,
         currentTime + duration - AUDIO_CONFIG.FADE_TIME,
       );
       gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
@@ -562,7 +564,7 @@ export default function Converter() {
 
       await sleep(duration * 1000);
     },
-    [frequency, initAudioContext],
+    [frequency, volume, initAudioContext],
   );
 
   const playMorseCode = useCallback(async () => {
@@ -781,12 +783,13 @@ export default function Converter() {
           // Apply fade in/out
           const fadeEnd = Math.min(fadeTime, duration / 2);
           gainNode.gain.setValueAtTime(0, currentTime);
+          const gainValue = getGain(volume[0] / 100);
           gainNode.gain.linearRampToValueAtTime(
-            AUDIO_CONFIG.GAIN,
+            gainValue,
             currentTime + fadeEnd,
           );
           gainNode.gain.linearRampToValueAtTime(
-            AUDIO_CONFIG.GAIN,
+            gainValue,
             currentTime + duration - fadeEnd,
           );
           gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
@@ -824,7 +827,7 @@ export default function Converter() {
     } catch (error) {
       console.error('WAV export failed:', error);
     }
-  }, [morseCode, speed, frequency]);
+  }, [morseCode, speed, frequency, volume]);
 
   // Helper function to convert AudioBuffer to WAV format
   const audioBufferToWav = (buffer: AudioBuffer): Blob => {
@@ -1325,6 +1328,8 @@ export default function Converter() {
                     setSpeed={setSpeed}
                     frequency={frequency}
                     setFrequency={setFrequency}
+                    volume={volume}
+                    setVolume={setVolume}
                     repeat={repeat}
                     setRepeat={setRepeat}
                     playMorseCode={playMorseCode}
