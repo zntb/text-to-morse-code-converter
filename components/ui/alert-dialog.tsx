@@ -13,10 +13,22 @@ function AlertDialog({
 }
 
 function AlertDialogTrigger({
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
+  // Filter out id to prevent SSR hydration mismatch
+  // Radix generates random IDs on client that don't match server
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...filteredProps } = props;
+
   return (
-    <AlertDialogPrimitive.Trigger data-slot='alert-dialog-trigger' {...props} />
+    <AlertDialogPrimitive.Trigger
+      data-slot='alert-dialog-trigger'
+      suppressHydrationWarning
+      {...filteredProps}
+    >
+      {children}
+    </AlertDialogPrimitive.Trigger>
   );
 }
 

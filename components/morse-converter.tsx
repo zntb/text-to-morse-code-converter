@@ -32,6 +32,7 @@ import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
 import PracticeQuiz from './PracticeQuiz';
 import PlaybackProgress from './PlaybackProgress';
+import CharacterReferenceTable from './CharacterReferenceTable';
 // Preset messages interface
 interface PresetMessage {
   id: string;
@@ -62,6 +63,7 @@ export default function Converter() {
   const [volume, setVolume] = useState([20]);
   const [showControls, setShowControls] = useState(true);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
+  const [showReferenceSheet, setShowReferenceSheet] = useState(false);
 
   // Conversion mode state
   const [conversionMode, setConversionMode] = useState<
@@ -1156,6 +1158,8 @@ export default function Converter() {
       {/* Main Content */}
       <main className='container mx-auto px-4 py-6'>
         <div className='mx-auto max-w-3xl space-y-6'>
+          {/* Character Reference - Always visible */}
+          <CharacterReferenceTable startExpanded={true} />
           {conversionMode === 'practice' ? (
             <div className='animate-fade-in-up'>
               <PracticeQuiz />
@@ -1409,6 +1413,22 @@ export default function Converter() {
                   currentDotDashType={currentDotDashType}
                   isBottomSheet={true}
                 />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Character Reference Sheet */}
+          <Sheet open={showReferenceSheet} onOpenChange={setShowReferenceSheet}>
+            <SheetContent className='w-full overflow-y-auto'>
+              <SheetHeader>
+                <SheetTitle>Character Reference</SheetTitle>
+                <SheetDescription>
+                  Browse the morse code alphabet, numbers, and punctuation.
+                  Hover or tap any character to hear its morse code.
+                </SheetDescription>
+              </SheetHeader>
+              <div className='mt-4'>
+                <CharacterReferenceTable startExpanded={true} />
               </div>
             </SheetContent>
           </Sheet>

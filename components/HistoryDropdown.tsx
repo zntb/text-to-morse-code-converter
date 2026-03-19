@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { HistoryItem } from '@/lib/useConversionHistory';
 import {
   DropdownMenu,
@@ -26,6 +27,12 @@ export default function HistoryDropdown({
   onClearHistory,
   disabled = false,
 }: HistoryDropdownProps) {
+  // Prevent hydration mismatch by tracking mount status
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
   // Format timestamp to readable date
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -59,7 +66,7 @@ export default function HistoryDropdown({
         >
           <Clock className='h-4 w-4' />
           History
-          {history.length > 0 && (
+          {isMounted && history.length > 0 && (
             <span className='ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs'>
               {history.length}
             </span>

@@ -73,7 +73,7 @@
 - Bottom sheet for settings on mobile
 - Swipe gestures for play/pause
 
-### 13. **Character Reference Table**
+### 13. **Character Reference Table**✅
 
 - Expandable morse code cheat sheet
 - Searchable alphabet/number table
