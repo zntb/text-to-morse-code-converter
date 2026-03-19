@@ -9,15 +9,9 @@ import {
   useLayoutEffect,
 } from 'react';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { Volume2 } from 'lucide-react';
+import { Radio, Volume2, Settings2 } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 
 import { ModeToggle } from './mode-toggle';
@@ -39,13 +33,14 @@ export default function Converter() {
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
   const [currentTextIndex, setCurrentTextIndex] = useState<number | null>(null);
   const [frequency, setFrequency] = useState([600]);
+  const [showControls, setShowControls] = useState(true);
 
   // --- Refs ---
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const analyserRef = useRef<AnalyserNode>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
@@ -438,63 +433,152 @@ export default function Converter() {
 
   // --- Render ---
   return (
-    <div className='relative w-full max-w-2xl mx-auto p-4'>
-      <div className='flex justify-end mb-3'>
-        <ModeToggle />
-      </div>
-      <Card className='dark:bg-zinc-900 dark:text-white'>
-        <CardHeader>
-          <CardTitle className='flex items-center gap-2'>
-            <Volume2 className='h-5 w-5' />
-            Morse Code Converter
-          </CardTitle>
-          <CardDescription>
-            Convert text to Morse code and play it back with adjustable speed
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='space-y-6'>
-          <MorseTextDisplay
-            inputText={inputText}
-            currentTextIndex={currentTextIndex}
-            textContainerRef={textContainerRef}
-            textHighlightRef={textHighlightRef}
-            setInputText={debouncedSetInputText}
-          />
-          <MorseOutputDisplay
-            morseCode={morseCode}
-            highlightIndex={highlightIndex}
-            containerRef={containerRef}
-            highlightRef={highlightRef}
-          />
-          <ControlPanel
-            speed={speed}
-            setSpeed={setSpeed}
-            frequency={frequency}
-            setFrequency={setFrequency}
-            repeat={repeat}
-            setRepeat={setRepeat}
-            playMorseCode={playMorseCode}
-            isPlaying={isPlaying}
-            morseCode={morseCode}
-            stopPlayback={() => {
-              playbackAbortControllerRef.current?.abort();
-              setIsPlaying(false);
-              isPlayingRef.current = false;
-              setHighlightIndex(null);
-              setCurrentTextIndex(null);
-            }}
-            setInputText={setInputText}
-            fileInputRef={fileInputRef}
-            handleUpload={handleUpload}
-            handleDownload={handleDownload}
-          />
-          <WaveformCanvas
-            canvasRef={canvasRef}
-            isPlaying={isPlaying}
-            analyserRef={analyserRef}
-          />
-        </CardContent>
-      </Card>
+    <div className='min-h-screen w-full radio-static-bg'>
+      {/* Header */}
+      <header className='sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md'>
+        <div className='container mx-auto flex h-16 items-center justify-between px-4'>
+          <div className='flex items-center gap-3'>
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-xl bg-primary ${
+                isPlaying ? 'animate-pulse-glow' : ''
+              }`}
+            >
+              <Radio className='h-5 w-5 text-primary-foreground' />
+            </div>
+            <div>
+              <h1 className='text-lg font-semibold tracking-tight'>
+                Morse Converter
+              </h1>
+              <p className='text-xs text-muted-foreground hidden sm:block'>
+                Text to Morse Code
+              </p>
+            </div>
+          </div>
+          <ModeToggle />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className='container mx-auto px-4 py-6'>
+        <div className='mx-auto max-w-3xl space-y-6'>
+          {/* Input Section */}
+          <div className='animate-fade-in-up stagger-1'>
+            <Card className='overflow-hidden'>
+              <CardHeader className='pb-4'>
+                <div className='flex items-center gap-2'>
+                  <Volume2 className='h-4 w-4 text-primary' />
+                  <span className='text-sm font-medium'>Input</span>
+                </div>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <MorseTextDisplay
+                  inputText={inputText}
+                  currentTextIndex={currentTextIndex}
+                  textContainerRef={textContainerRef}
+                  textHighlightRef={textHighlightRef}
+                  setInputText={debouncedSetInputText}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Output Section */}
+          <div className='animate-fade-in-up stagger-2'>
+            <Card className='overflow-hidden'>
+              <CardHeader className='pb-4'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-primary'>· –</span>
+                  <span className='text-sm font-medium'>Morse Output</span>
+                </div>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <MorseOutputDisplay
+                  morseCode={morseCode}
+                  highlightIndex={highlightIndex}
+                  containerRef={containerRef}
+                  highlightRef={highlightRef}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Waveform Section */}
+          <div className='animate-fade-in-up stagger-3'>
+            <WaveformCanvas
+              canvasRef={canvasRef}
+              isPlaying={isPlaying}
+              analyserRef={analyserRef}
+            />
+          </div>
+
+          {/* Controls Toggle */}
+          <div className='animate-fade-in-up stagger-4'>
+            <button
+              onClick={() => setShowControls(!showControls)}
+              className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent'
+            >
+              <div className='flex items-center gap-2'>
+                <Settings2 className='h-4 w-4' />
+                <span>Playback Settings</span>
+              </div>
+              <span
+                className={`transition-transform duration-200 ${
+                  showControls ? 'rotate-180' : ''
+                }`}
+              >
+                ▼
+              </span>
+            </button>
+          </div>
+
+          {/* Control Panel */}
+          {showControls && (
+            <div className='animate-fade-in-up stagger-5'>
+              <Card className='overflow-hidden'>
+                <CardContent className='pt-6'>
+                  <ControlPanel
+                    speed={speed}
+                    setSpeed={setSpeed}
+                    frequency={frequency}
+                    setFrequency={setFrequency}
+                    repeat={repeat}
+                    setRepeat={setRepeat}
+                    playMorseCode={playMorseCode}
+                    isPlaying={isPlaying}
+                    morseCode={morseCode}
+                    stopPlayback={() => {
+                      playbackAbortControllerRef.current?.abort();
+                      setIsPlaying(false);
+                      isPlayingRef.current = false;
+                      setHighlightIndex(null);
+                      setCurrentTextIndex(null);
+                    }}
+                    setInputText={setInputText}
+                    fileInputRef={fileInputRef}
+                    handleUpload={handleUpload}
+                    handleDownload={handleDownload}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Footer Info */}
+          <div className='animate-fade-in-up stagger-6'>
+            <p className='text-center text-xs text-muted-foreground'>
+              Press{' '}
+              <kbd className='rounded bg-muted px-1.5 py-0.5 font-mono text-xs'>
+                Ctrl + Space
+              </kbd>{' '}
+              to play/pause •{' '}
+              <kbd className='rounded bg-muted px-1.5 py-0.5 font-mono text-xs'>
+                Esc
+              </kbd>{' '}
+              to reset
+            </p>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

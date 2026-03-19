@@ -1,3 +1,4 @@
 {
-  "cSpell.words": ["shadcn", "Wabun"]
+  "cSpell.words": ["shadcn", "Wabun"],
+  "snyk.advanced.autoSelectOrganization": true
 }

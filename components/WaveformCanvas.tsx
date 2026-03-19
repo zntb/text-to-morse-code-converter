@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useEffect, useRef, useCallback } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 interface WaveformCanvasProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -68,17 +71,23 @@ export default function WaveformCanvas({
       if (!canvas || !analyser || !ctx || !dataArray) return;
 
       // Get audio data - use type assertion to resolve TypeScript strict typing
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       analyser.getByteTimeDomainData(dataArray as any);
 
-      // Clear canvas efficiently
-      ctx.fillStyle = '#000000';
+      // Clear canvas efficiently with gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#0a0a0a');
+      gradient.addColorStop(1, '#1a1a1a');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw waveform
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#00ff00';
+      // Draw glow effect
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#22c55e';
+
+      // Draw waveform with enhanced styling
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#22c55e';
       ctx.beginPath();
 
       // Optimize drawing by sampling fewer points for display
@@ -110,6 +119,9 @@ export default function WaveformCanvas({
       ctx.lineTo(canvas.width, canvas.height / 2);
       ctx.stroke();
 
+      // Reset shadow for next frame
+      ctx.shadowBlur = 0;
+
       // Continue animation if still playing
       if (isPlaying) {
         animationIdRef.current = requestAnimationFrame(drawWaveform);
@@ -125,19 +137,36 @@ export default function WaveformCanvas({
       animationIdRef.current = undefined;
     }
 
-    // Clear canvas when stopped
+    // Clear canvas when stopped with styled background
     const canvas = canvasRef.current;
     const ctx = ctxRef.current;
     if (canvas && ctx) {
-      ctx.fillStyle = '#000000';
+      // Draw background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#0a0a0a');
+      gradient.addColorStop(1, '#1a1a1a');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw center line when not playing
-      ctx.strokeStyle = '#333333';
+      // Draw grid lines
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.1)';
       ctx.lineWidth = 1;
+
+      // Horizontal center line
       ctx.beginPath();
       ctx.moveTo(0, canvas.height / 2);
       ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+
+      // Quarter lines
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height / 4);
+      ctx.lineTo(canvas.width, canvas.height / 4);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, (canvas.height * 3) / 4);
+      ctx.lineTo(canvas.width, (canvas.height * 3) / 4);
       ctx.stroke();
     }
   }, [canvasRef]);
@@ -178,6 +207,11 @@ export default function WaveformCanvas({
           ctx.scale(dpr, dpr);
           ctxRef.current = ctx;
         }
+
+        // Redraw static state if not playing
+        if (!isPlaying) {
+          stopAnimation();
+        }
       }
     });
 
@@ -186,22 +220,66 @@ export default function WaveformCanvas({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [canvasRef]);
+  }, [canvasRef, isPlaying, stopAnimation]);
 
   return (
-    <div className='space-y-2'>
-      <div className='text-sm text-muted-foreground'>Audio Waveform</div>
-      <canvas
-        ref={canvasRef}
-        width={500}
-        height={100}
-        className='w-full h-24 bg-black rounded shadow-sm border'
-        style={{
-          // Optimize canvas rendering
-          imageRendering: 'auto',
-          willChange: isPlaying ? 'contents' : 'auto',
-        }}
-      />
-    </div>
+    <Card className='overflow-hidden'>
+      <CardHeader className='pb-2'>
+        <div className='flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <ActivityIcon
+              className={`h-4 w-4 ${
+                isPlaying
+                  ? 'text-primary animate-pulse'
+                  : 'text-muted-foreground'
+              }`}
+            />
+            <span className='text-sm font-medium'>Audio Waveform</span>
+          </div>
+          <div className='flex items-center gap-2'>
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isPlaying ? 'bg-primary animate-pulse' : 'bg-muted'
+              }`}
+            />
+            <span className='text-xs text-muted-foreground'>
+              {isPlaying ? 'Playing' : 'Idle'}
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <canvas
+          ref={canvasRef}
+          width={500}
+          height={100}
+          className='w-full h-24 rounded-lg'
+          style={{
+            imageRendering: 'auto',
+            willChange: isPlaying ? 'contents' : 'auto',
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+// Simple Activity icon component
+function ActivityIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns='http://www.w3.org/2000/svg'
+      width='24'
+      height='24'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      className={className}
+    >
+      <path d='M22 12h-4l-3 9L9 3l-3 9H2' />
+    </svg>
   );
 }

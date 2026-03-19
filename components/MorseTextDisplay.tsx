@@ -1,3 +1,5 @@
+'use client';
+
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import React, { memo, useLayoutEffect } from 'react';
@@ -50,46 +52,57 @@ const MorseTextDisplay = memo(function MorseTextDisplay({
   }, [currentTextIndex]);
 
   return (
-    <div className='space-y-2'>
-      <Label htmlFor='input-text'>Enter Text</Label>
-      <div className='relative h-[100px] overflow-hidden rounded-md border'>
+    <div className='space-y-3'>
+      {/* Hidden display for character highlighting */}
+      <div className='relative min-h-[60px] overflow-hidden rounded-lg border bg-muted/30'>
         <div
-          className='h-full w-full overflow-y-auto p-2 bg-background scroll-smooth'
+          className='h-full w-full overflow-y-auto p-3 font-mono text-xl leading-relaxed tracking-wide'
           ref={textContainerRef}
           style={{
             scrollBehavior: 'smooth',
-            // Ensure hardware acceleration for smooth scrolling
             willChange: 'scroll-position',
-            transform: 'translateZ(0)',
           }}
         >
-          {inputText.split('').map((char, idx) => (
-            <span
-              key={idx}
-              className={`inline-block px-[1px] rounded-sm transition-colors duration-150 ${
-                idx === currentTextIndex
-                  ? 'bg-blue-500/30 text-blue-600 font-bold shadow-sm'
-                  : 'text-foreground'
-              }`}
-              ref={idx === currentTextIndex ? textHighlightRef : undefined}
-              style={{
-                // Optimize for smooth highlighting
-                backfaceVisibility: 'hidden',
-                transform: 'translateZ(0)',
-              }}
-            >
-              {char === ' ' ? '\u00A0' : char}
+          {inputText.length > 0 ? (
+            inputText.split('').map((char, idx) => (
+              <span
+                key={idx}
+                className={`inline-block px-[1px] rounded-sm transition-all duration-150 ${
+                  idx === currentTextIndex
+                    ? 'bg-primary/40 text-primary-foreground scale-110 shadow-sm ring-1 ring-primary'
+                    : 'text-foreground'
+                }`}
+                ref={idx === currentTextIndex ? textHighlightRef : undefined}
+              >
+                {char === ' ' ? '\u00A0' : char}
+              </span>
+            ))
+          ) : (
+            <span className='text-muted-foreground/50 italic'>
+              Your text will appear here with highlighting...
             </span>
-          ))}
+          )}
         </div>
       </div>
+
+      {/* Input Textarea */}
       <Textarea
         id='input-text'
-        placeholder='Type your message here...'
+        placeholder='Type your message here to convert to Morse code...'
         value={inputText}
         onChange={e => setInputText(e.target.value)}
-        className='min-h-[100px] max-h-40'
+        className='min-h-[100px] resize-y font-mono text-base'
       />
+
+      {/* Character count */}
+      <div className='flex justify-between text-xs text-muted-foreground'>
+        <span>{inputText.length} characters</span>
+        <span>
+          {inputText.length > 0
+            ? `${inputText.split('').filter(c => c.trim()).length} words`
+            : '0 words'}
+        </span>
+      </div>
     </div>
   );
 });
