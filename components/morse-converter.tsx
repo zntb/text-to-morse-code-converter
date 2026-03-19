@@ -9,12 +9,18 @@ import {
   useLayoutEffect,
 } from 'react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
-import { Radio, Volume2, Settings2 } from 'lucide-react';
-import { MORSE_CODE_MAP } from '@/morse-code-data';
+import { Radio, Volume2, Settings2, Mic, MicOff } from 'lucide-react';
+import { MORSE_CODE_MAP, TEXT_TO_MORSE_MAP } from '@/morse-code-data';
 
 import { ModeToggle } from './mode-toggle';
+import {
+  ConversionModeToggle,
+  AudioInputModeToggle,
+  AudioInputMode,
+} from './conversion-mode-toggle';
 import MorseTextDisplay from './MorseTextDisplay';
 import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
@@ -34,6 +40,42 @@ export default function Converter() {
   const [currentTextIndex, setCurrentTextIndex] = useState<number | null>(null);
   const [frequency, setFrequency] = useState([600]);
   const [showControls, setShowControls] = useState(true);
+
+  // Conversion mode state
+  const [conversionMode, setConversionMode] = useState<
+    'text-to-morse' | 'morse-to-text'
+  >('text-to-morse');
+  const [audioInputMode, setAudioInputMode] =
+    useState<AudioInputMode>('microphone');
+  const [isListening, setIsListening] = useState(false);
+  const [morseInput, setMorseInput] = useState('');
+
+  // Microphone device selection
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
+  // Test Microphone state
+  const [isTestingMic, setIsTestingMic] = useState(false);
+  const [testMicError, setTestMicError] = useState<string | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  // Audio recognition state
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioInputRef = useRef<AudioContext | null>(null);
+  const analyserDecodeRef = useRef<AnalyserNode | null>(null);
+  const recognitionRef = useRef<number | null>(null);
+  const audioBufferRef = useRef<number[]>([]);
+  const lastSignalTimeRef = useRef<number>(0);
+  const currentDotDashRef = useRef<string>('');
+  const selectedDeviceIdRef = useRef<string>('');
+  const isListeningRef = useRef(false);
+
+  // Test Microphone refs
+  const testMicStreamRef = useRef<MediaStream | null>(null);
+  const testMicAnalyserRef = useRef<AnalyserNode | null>(null);
+  const testMicAudioContextRef = useRef<AudioContext | null>(null);
+  const testMicAnimationRef = useRef<number | null>(null);
+  const isTestingMicRef = useRef(false);
 
   // --- Refs ---
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -93,6 +135,305 @@ export default function Converter() {
       .map(char => MORSE_CODE_MAP[char] || '?')
       .join(' ');
   }, []);
+
+  // --- Morse to Text Decoding ---
+  const convertToText = useCallback((morse: string) => {
+    // Normalize the morse string
+    const normalized = morse.trim().replace(/\s+/g, ' ');
+    if (!normalized) return '';
+
+    const words = normalized.split(' / ');
+    return words
+      .map(word => {
+        const letters = word.split(' ');
+        return letters.map(code => TEXT_TO_MORSE_MAP[code] || '?').join('');
+      })
+      .join(' ');
+  }, []);
+
+  const decodedText = useMemo(
+    () => convertToText(morseInput),
+    [morseInput, convertToText],
+  );
+
+  // --- Enumerate Audio Devices ---
+  const enumerateAudioDevices = useCallback(async () => {
+    try {
+      // Request permission first
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices.filter(
+        device => device.kind === 'audioinput',
+      );
+      setAudioDevices(audioInputs);
+
+      if (audioInputs.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(audioInputs[0].deviceId);
+      }
+    } catch (error) {
+      console.error('Failed to enumerate audio devices:', error);
+    }
+  }, [selectedDeviceId]);
+
+  // --- Real-time Audio Recognition for Morse Decoding ---
+  const startAudioRecognition = useCallback(async () => {
+    try {
+      // Get audio stream from selected device using ref
+      const deviceId = selectedDeviceIdRef.current;
+      const constraints: MediaStreamConstraints = {
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaStreamRef.current = stream;
+
+      // Create audio context for analysis
+      const audioContext = new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext)();
+      audioInputRef.current = audioContext;
+
+      // Create analyser node
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyserDecodeRef.current = analyser;
+
+      // Connect microphone to analyser
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      // Initialize buffers
+      audioBufferRef.current = [];
+      currentDotDashRef.current = '';
+      lastSignalTimeRef.current = Date.now();
+
+      const detectMorse = () => {
+        if (!analyserDecodeRef.current || !isListeningRef.current) return;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+
+        // Check if there's a significant audio signal (tone detection)
+        // Morse tones are typically around 600Hz, so check that frequency range
+        const sampleRate = audioContext.sampleRate;
+        const binSize = sampleRate / analyser.fftSize;
+        const targetBin = Math.round(600 / binSize);
+        const binRange = 5; // Check a range around 600Hz
+
+        let sum = 0;
+        for (let i = targetBin - binRange; i <= targetBin + binRange; i++) {
+          if (i >= 0 && i < dataArray.length) {
+            sum += dataArray[i];
+          }
+        }
+        const avg = sum / (binRange * 2);
+        const threshold = 50; // Adjust based on testing
+
+        const now = Date.now();
+        const timeSinceLastSignal = now - lastSignalTimeRef.current;
+
+        // Timing thresholds (in ms)
+        const dotThreshold = 50; // Minimum for a dot
+        const dashThreshold = 150; // Minimum for a dash
+        const elementGapThreshold = 100; // Gap between dots/dashes
+        const letterGapThreshold = 250; // Gap between letters
+        const wordGapThreshold = 500; // Gap between words
+
+        if (avg > threshold) {
+          // Signal detected - recording duration
+          if (audioBufferRef.current.length === 0) {
+            audioBufferRef.current.push(now);
+          }
+        } else {
+          // No signal - check if we need to process a completed element
+          if (audioBufferRef.current.length === 1) {
+            const signalDuration = now - audioBufferRef.current[0];
+
+            if (
+              signalDuration > dotThreshold &&
+              signalDuration < dashThreshold
+            ) {
+              currentDotDashRef.current += '.';
+            } else if (signalDuration >= dashThreshold) {
+              currentDotDashRef.current += '-';
+            }
+
+            audioBufferRef.current = [];
+            lastSignalTimeRef.current = now;
+          } else if (
+            audioBufferRef.current.length === 0 &&
+            currentDotDashRef.current.length > 0
+          ) {
+            // Check for gaps
+            if (timeSinceLastSignal > wordGapThreshold) {
+              // Word gap - add space
+              setMorseInput(prev => prev + ' / ');
+              currentDotDashRef.current = '';
+            } else if (timeSinceLastSignal > letterGapThreshold) {
+              // Letter gap - add space
+              setMorseInput(prev => prev + ' ');
+              currentDotDashRef.current = '';
+            } else if (
+              timeSinceLastSignal > elementGapThreshold &&
+              currentDotDashRef.current.length > 0
+            ) {
+              // Element gap within a letter
+              setMorseInput(prev => prev + currentDotDashRef.current);
+              currentDotDashRef.current = '';
+            }
+          }
+        }
+
+        if (isListening) {
+          recognitionRef.current = requestAnimationFrame(detectMorse);
+        }
+      };
+
+      setIsListening(true);
+      detectMorse();
+    } catch (error) {
+      console.error('Failed to start audio recognition:', error);
+      setIsListening(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync selectedDeviceId and isListening with refs
+  useEffect(() => {
+    selectedDeviceIdRef.current = selectedDeviceId;
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+
+  useEffect(() => {
+    isTestingMicRef.current = isTestingMic;
+  }, [isTestingMic]);
+
+  // --- Test Microphone Functions ---
+  const startTestMicrophone = useCallback(async () => {
+    try {
+      setTestMicError(null);
+      setAudioLevel(0);
+
+      const deviceId = selectedDeviceIdRef.current;
+      const constraints: MediaStreamConstraints = {
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      testMicStreamRef.current = stream;
+
+      // Create audio context for analysis
+      const audioContext = new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext)();
+      testMicAudioContextRef.current = audioContext;
+
+      // Create analyser node
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      testMicAnalyserRef.current = analyser;
+
+      // Connect microphone to analyser
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const updateAudioLevel = () => {
+        if (!testMicAnalyserRef.current || !isTestingMicRef.current) return;
+
+        const dataArray = new Uint8Array(
+          testMicAnalyserRef.current.frequencyBinCount,
+        );
+        testMicAnalyserRef.current.getByteFrequencyData(dataArray);
+
+        // Calculate average volume level
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        // Convert to 0-100 scale (255 is max byte value)
+        const level = Math.min(100, Math.round((average / 255) * 100 * 3));
+        setAudioLevel(level);
+
+        if (isTestingMicRef.current) {
+          testMicAnimationRef.current = requestAnimationFrame(updateAudioLevel);
+        }
+      };
+
+      setIsTestingMic(true);
+      updateAudioLevel();
+    } catch (error) {
+      console.error('Failed to start test microphone:', error);
+      setTestMicError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to access microphone. Please check permissions.',
+      );
+      setIsTestingMic(false);
+    }
+  }, []);
+
+  const stopTestMicrophone = useCallback(() => {
+    setIsTestingMic(false);
+    setAudioLevel(0);
+
+    if (testMicAnimationRef.current) {
+      cancelAnimationFrame(testMicAnimationRef.current);
+      testMicAnimationRef.current = null;
+    }
+
+    if (testMicStreamRef.current) {
+      testMicStreamRef.current.getTracks().forEach(track => track.stop());
+      testMicStreamRef.current = null;
+    }
+
+    if (
+      testMicAudioContextRef.current &&
+      testMicAudioContextRef.current.state !== 'closed'
+    ) {
+      testMicAudioContextRef.current.close();
+      testMicAudioContextRef.current = null;
+    }
+
+    testMicAnalyserRef.current = null;
+  }, []);
+
+  // Cleanup test microphone on unmount
+  useEffect(() => {
+    return () => {
+      stopTestMicrophone();
+    };
+  }, [stopTestMicrophone]);
+
+  const stopAudioRecognition = useCallback(() => {
+    setIsListening(false);
+
+    if (recognitionRef.current) {
+      cancelAnimationFrame(recognitionRef.current);
+      recognitionRef.current = null;
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    if (audioInputRef.current && audioInputRef.current.state !== 'closed') {
+      audioInputRef.current.close();
+      audioInputRef.current = null;
+    }
+
+    analyserDecodeRef.current = null;
+  }, []);
+
+  // Cleanup audio recognition on unmount
+  useEffect(() => {
+    return () => {
+      stopAudioRecognition();
+    };
+  }, [stopAudioRecognition]);
 
   const morseCode = useMemo(
     () => convertToMorse(inputText),
@@ -440,7 +781,7 @@ export default function Converter() {
           <div className='flex items-center gap-3'>
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-xl bg-primary ${
-                isPlaying ? 'animate-pulse-glow' : ''
+                isPlaying || isListening ? 'animate-pulse-glow' : ''
               }`}
             >
               <Radio className='h-5 w-5 text-primary-foreground' />
@@ -450,89 +791,359 @@ export default function Converter() {
                 Morse Converter
               </h1>
               <p className='text-xs text-muted-foreground hidden sm:block'>
-                Text to Morse Code
+                {conversionMode === 'text-to-morse'
+                  ? 'Text to Morse Code'
+                  : 'Morse Code to Text'}
               </p>
             </div>
           </div>
-          <ModeToggle />
+          <div className='flex items-center gap-2'>
+            <ConversionModeToggle
+              mode={conversionMode}
+              setMode={setConversionMode}
+              isListening={isListening}
+            />
+            <ModeToggle />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className='container mx-auto px-4 py-6'>
         <div className='mx-auto max-w-3xl space-y-6'>
-          {/* Input Section */}
-          <div className='animate-fade-in-up stagger-1'>
-            <Card className='overflow-hidden'>
-              <CardHeader className='pb-4'>
-                <div className='flex items-center gap-2'>
-                  <Volume2 className='h-4 w-4 text-primary' />
-                  <span className='text-sm font-medium'>Input</span>
-                </div>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <MorseTextDisplay
-                  inputText={inputText}
-                  currentTextIndex={currentTextIndex}
-                  textContainerRef={textContainerRef}
-                  textHighlightRef={textHighlightRef}
-                  setInputText={debouncedSetInputText}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Output Section */}
-          <div className='animate-fade-in-up stagger-2'>
-            <Card className='overflow-hidden'>
-              <CardHeader className='pb-4'>
-                <div className='flex items-center gap-2'>
-                  <span className='text-primary'>· –</span>
-                  <span className='text-sm font-medium'>Morse Output</span>
-                </div>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <MorseOutputDisplay
-                  morseCode={morseCode}
-                  highlightIndex={highlightIndex}
-                  containerRef={containerRef}
-                  highlightRef={highlightRef}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Waveform Section */}
-          <div className='animate-fade-in-up stagger-3'>
-            <WaveformCanvas
-              canvasRef={canvasRef}
-              isPlaying={isPlaying}
-              analyserRef={analyserRef}
-            />
-          </div>
-
-          {/* Controls Toggle */}
-          <div className='animate-fade-in-up stagger-4'>
-            <button
-              onClick={() => setShowControls(!showControls)}
-              className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent'
-            >
-              <div className='flex items-center gap-2'>
-                <Settings2 className='h-4 w-4' />
-                <span>Playback Settings</span>
+          {conversionMode === 'text-to-morse' ? (
+            <>
+              {/* Text to Morse Mode */}
+              {/* Input Section */}
+              <div className='animate-fade-in-up stagger-1'>
+                <Card className='overflow-hidden'>
+                  <CardHeader className='pb-4'>
+                    <div className='flex items-center gap-2'>
+                      <Volume2 className='h-4 w-4 text-primary' />
+                      <span className='text-sm font-medium'>Input</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <MorseTextDisplay
+                      inputText={inputText}
+                      currentTextIndex={currentTextIndex}
+                      textContainerRef={textContainerRef}
+                      textHighlightRef={textHighlightRef}
+                      setInputText={debouncedSetInputText}
+                    />
+                  </CardContent>
+                </Card>
               </div>
-              <span
-                className={`transition-transform duration-200 ${
-                  showControls ? 'rotate-180' : ''
-                }`}
-              >
-                ▼
-              </span>
-            </button>
-          </div>
 
-          {/* Control Panel */}
-          {showControls && (
+              {/* Output Section */}
+              <div className='animate-fade-in-up stagger-2'>
+                <Card className='overflow-hidden'>
+                  <CardHeader className='pb-4'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-primary'>· –</span>
+                      <span className='text-sm font-medium'>Morse Output</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <MorseOutputDisplay
+                      morseCode={morseCode}
+                      highlightIndex={highlightIndex}
+                      containerRef={containerRef}
+                      highlightRef={highlightRef}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Morse to Text Mode */}
+              {/* Audio Input Mode Toggle */}
+              <div className='animate-fade-in-up stagger-1'>
+                <Card className='overflow-hidden'>
+                  <CardHeader className='pb-4'>
+                    <div className='flex items-center gap-2'>
+                      <Mic className='h-4 w-4 text-primary' />
+                      <span className='text-sm font-medium'>Audio Input</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <AudioInputModeToggle
+                      audioInputMode={audioInputMode}
+                      setAudioInputMode={setAudioInputMode}
+                      isListening={isListening}
+                    />
+
+                    {/* Microphone Input Section */}
+                    {audioInputMode === 'microphone' && (
+                      <div className='flex flex-col items-center gap-4 py-4'>
+                        {/* Device Selection */}
+                        <div className='w-full max-w-xs'>
+                          <label className='text-sm font-medium mb-2 block'>
+                            Select Microphone
+                          </label>
+                          <select
+                            value={selectedDeviceId}
+                            onChange={e => setSelectedDeviceId(e.target.value)}
+                            onClick={() => {
+                              if (audioDevices.length === 0) {
+                                enumerateAudioDevices();
+                              }
+                            }}
+                            className='w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+                            disabled={isListening}
+                          >
+                            {audioDevices.length === 0 ? (
+                              <option value=''>Click to load devices...</option>
+                            ) : (
+                              audioDevices.map(device => (
+                                <option
+                                  key={device.deviceId}
+                                  value={device.deviceId}
+                                >
+                                  {device.label ||
+                                    `Microphone ${device.deviceId.slice(0, 8)}`}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+
+                        <Button
+                          onClick={
+                            isListening
+                              ? stopAudioRecognition
+                              : startAudioRecognition
+                          }
+                          size='lg'
+                          className={`gap-2 ${
+                            isListening
+                              ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
+                              : ''
+                          }`}
+                          disabled={
+                            !selectedDeviceId && audioDevices.length > 0
+                          }
+                        >
+                          {isListening ? (
+                            <>
+                              <MicOff className='h-4 w-4' />
+                              Stop Listening
+                            </>
+                          ) : (
+                            <>
+                              <Mic className='h-4 w-4' />
+                              Start Listening
+                            </>
+                          )}
+                        </Button>
+                        <p className='text-xs text-muted-foreground text-center'>
+                          {isListening
+                            ? 'Listening for Morse code... Speak or play Morse audio'
+                            : 'Select a microphone and click start to begin'}
+                        </p>
+
+                        {/* Test Microphone Section */}
+                        <div className='flex flex-col items-center gap-4 py-4 border-t mt-4'>
+                          <Button
+                            onClick={
+                              isTestingMic
+                                ? stopTestMicrophone
+                                : startTestMicrophone
+                            }
+                            variant={isTestingMic ? 'secondary' : 'outline'}
+                            size='lg'
+                            className='gap-2'
+                            disabled={
+                              !selectedDeviceId && audioDevices.length > 0
+                            }
+                          >
+                            {isTestingMic ? (
+                              <>
+                                <MicOff className='h-4 w-4' />
+                                Stop Test
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className='h-4 w-4' />
+                                Test Microphone
+                              </>
+                            )}
+                          </Button>
+
+                          {/* Audio Level Visualization */}
+                          {isTestingMic && (
+                            <div className='w-full max-w-xs space-y-2'>
+                              <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                                <span>Volume Level</span>
+                                <span
+                                  className={`font-medium ${
+                                    audioLevel > 10
+                                      ? 'text-green-500'
+                                      : 'text-yellow-500'
+                                  }`}
+                                >
+                                  {audioLevel > 10
+                                    ? 'Microphone Active'
+                                    : 'No Input Detected'}
+                                </span>
+                              </div>
+                              <div className='h-3 w-full overflow-hidden rounded-full bg-secondary'>
+                                <div
+                                  className={`h-full transition-all duration-75 ${
+                                    audioLevel > 10
+                                      ? 'bg-green-500'
+                                      : 'bg-yellow-500'
+                                  }`}
+                                  style={{ width: `${audioLevel}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Error Display */}
+                          {testMicError && (
+                            <div className='w-full max-w-xs rounded-md bg-destructive/10 p-3 text-sm text-destructive'>
+                              {testMicError}
+                            </div>
+                          )}
+
+                          <p className='text-xs text-muted-foreground text-center'>
+                            {isTestingMic
+                              ? 'Testing microphone... Make some noise to see the level'
+                              : 'Test your microphone before starting recognition'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* File Input Section */}
+                    {audioInputMode === 'file' && (
+                      <div className='flex flex-col items-center gap-4 py-4'>
+                        <input
+                          type='file'
+                          accept='audio/*'
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // For file input, we'll parse the morse code manually
+                              // In a real app, you'd decode the audio file
+                              // For now, we'll just show a prompt
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                // Placeholder: In production, you'd decode the audio here
+                                alert(
+                                  'Audio file loaded. For demo, please enter Morse code manually below.',
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className='hidden'
+                          id='audio-file-input'
+                        />
+                        <Button
+                          variant='outline'
+                          onClick={() =>
+                            document.getElementById('audio-file-input')?.click()
+                          }
+                          size='lg'
+                          className='gap-2'
+                        >
+                          <Volume2 className='h-4 w-4' />
+                          Load Audio File
+                        </Button>
+                        <p className='text-xs text-muted-foreground text-center'>
+                          Load an audio file containing Morse code
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Morse Input Section */}
+              <div className='animate-fade-in-up stagger-2'>
+                <Card className='overflow-hidden'>
+                  <CardHeader className='pb-4'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-primary'>· –</span>
+                      <span className='text-sm font-medium'>Morse Input</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <textarea
+                      value={morseInput}
+                      onChange={e => setMorseInput(e.target.value)}
+                      placeholder='Enter Morse code here (e.g., ... --- ... for SOS)'
+                      className='min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+                    />
+                    <p className='text-xs text-muted-foreground'>
+                      Use dots (.) and dashes (-) separated by spaces. Use / for
+                      word gaps.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Decoded Text Output */}
+              <div className='animate-fade-in-up stagger-3'>
+                <Card className='overflow-hidden'>
+                  <CardHeader className='pb-4'>
+                    <div className='flex items-center gap-2'>
+                      <Volume2 className='h-4 w-4 text-primary' />
+                      <span className='text-sm font-medium'>Decoded Text</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <div className='min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm'>
+                      {decodedText || (
+                        <span className='text-muted-foreground'>
+                          Decoded text will appear here...
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+
+          {/* Waveform Section - Only for Text to Morse mode */}
+          {conversionMode === 'text-to-morse' && (
+            <div className='animate-fade-in-up stagger-3'>
+              <WaveformCanvas
+                canvasRef={canvasRef}
+                isPlaying={isPlaying}
+                analyserRef={analyserRef}
+              />
+            </div>
+          )}
+
+          {/* Controls Toggle - Only for Text to Morse mode */}
+          {conversionMode === 'text-to-morse' && (
+            <div className='animate-fade-in-up stagger-4'>
+              <button
+                onClick={() => setShowControls(!showControls)}
+                className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent'
+              >
+                <div className='flex items-center gap-2'>
+                  <Settings2 className='h-4 w-4' />
+                  <span>Playback Settings</span>
+                </div>
+                <span
+                  className={`transition-transform duration-200 ${
+                    showControls ? 'rotate-180' : ''
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* Control Panel - Only for Text to Morse mode */}
+          {conversionMode === 'text-to-morse' && showControls && (
             <div className='animate-fade-in-up stagger-5'>
               <Card className='overflow-hidden'>
                 <CardContent className='pt-6'>

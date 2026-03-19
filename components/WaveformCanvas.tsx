@@ -51,13 +51,18 @@ export default function WaveformCanvas({
     return true;
   }, [canvasRef, analyserRef]);
 
+  // Store drawWaveform in a ref to avoid circular reference
+  const drawWaveformRef = useRef<(currentTime: number) => void>(() => {});
+
   // Optimized draw function with frame rate limiting
   const drawWaveform = useCallback(
     (currentTime: number) => {
       // Frame rate limiting
       if (currentTime - lastFrameTimeRef.current < FRAME_DURATION) {
         if (isPlaying) {
-          animationIdRef.current = requestAnimationFrame(drawWaveform);
+          animationIdRef.current = requestAnimationFrame(
+            drawWaveformRef.current,
+          );
         }
         return;
       }
@@ -124,11 +129,16 @@ export default function WaveformCanvas({
 
       // Continue animation if still playing
       if (isPlaying) {
-        animationIdRef.current = requestAnimationFrame(drawWaveform);
+        animationIdRef.current = requestAnimationFrame(drawWaveformRef.current);
       }
     },
-    [isPlaying, canvasRef, analyserRef, FRAME_DURATION],
+    [isPlaying, canvasRef, analyserRef, FRAME_DURATION, drawWaveformRef],
   );
+
+  // Update the ref with the latest drawWaveform function
+  useEffect(() => {
+    drawWaveformRef.current = drawWaveform;
+  }, [drawWaveform]);
 
   // Enhanced cleanup function
   const stopAnimation = useCallback(() => {
