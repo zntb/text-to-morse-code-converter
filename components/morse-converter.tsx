@@ -33,6 +33,8 @@ interface PresetMessage {
 }
 
 import { debounce } from '@/lib/utils';
+import { useConversionHistory } from '@/lib/useConversionHistory';
+import HistoryDropdown from '@/components/HistoryDropdown';
 import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -82,6 +84,10 @@ export default function Converter() {
     totalCharactersPlayed: 0,
     totalTimeSpent: 0, // in seconds
   });
+
+  // History state for recent conversions
+  const { history, addToHistory, removeFromHistory, clearHistory } =
+    useConversionHistory();
 
   // Track session time
   useEffect(() => {
@@ -153,6 +159,24 @@ export default function Converter() {
   const applyPreset = useCallback((text: string) => {
     setInputText(text);
   }, []);
+
+  // Handle history item selection
+  const handleHistorySelect = useCallback(
+    (item: {
+      input: string;
+      output: string;
+      mode: 'text-to-morse' | 'morse-to-text';
+    }) => {
+      if (item.mode === 'text-to-morse') {
+        setConversionMode('text-to-morse');
+        setInputText(item.input);
+      } else {
+        setConversionMode('morse-to-text');
+        setMorseInput(item.output);
+      }
+    },
+    [],
+  );
 
   // Audio recognition state
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -535,6 +559,38 @@ export default function Converter() {
     () => convertToMorse(inputText),
     [inputText, convertToMorse],
   );
+
+  // Save to history when input changes (debounced)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const saveToHistoryDebounced = useCallback(
+    debounce(
+      (
+        text: string,
+        output: string,
+        mode: 'text-to-morse' | 'morse-to-text',
+      ) => {
+        if (text.trim()) {
+          addToHistory(text, output, mode);
+        }
+      },
+      2000,
+    ),
+    [addToHistory],
+  );
+
+  // Effect to save text-to-morse conversions to history
+  useEffect(() => {
+    if (inputText && morseCode) {
+      saveToHistoryDebounced(inputText, morseCode, 'text-to-morse');
+    }
+  }, [inputText, morseCode, saveToHistoryDebounced]);
+
+  // Effect to save morse-to-text conversions to history
+  useEffect(() => {
+    if (morseInput && decodedText) {
+      saveToHistoryDebounced(morseInput, decodedText, 'morse-to-text');
+    }
+  }, [morseInput, decodedText, saveToHistoryDebounced]);
 
   // --- Mapping Morse Index to Text Index (Optimized) ---
   const morseToTextMapping = useMemo(() => {
@@ -1109,18 +1165,26 @@ export default function Converter() {
                     </div>
                   </CardHeader>
                   <CardContent className='space-y-4'>
-                    <PresetButtons
-                      customPresets={customPresets}
-                      showPresetInput={showPresetInput}
-                      newPresetName={newPresetName}
-                      newPresetText={newPresetText}
-                      onApplyPreset={applyPreset}
-                      onDeletePreset={deleteCustomPreset}
-                      onShowPresetInput={setShowPresetInput}
-                      onNewPresetNameChange={setNewPresetName}
-                      onNewPresetTextChange={setNewPresetText}
-                      onSavePreset={saveCustomPreset}
-                    />
+                    <div className='flex items-center justify-between gap-4'>
+                      <PresetButtons
+                        customPresets={customPresets}
+                        showPresetInput={showPresetInput}
+                        newPresetName={newPresetName}
+                        newPresetText={newPresetText}
+                        onApplyPreset={applyPreset}
+                        onDeletePreset={deleteCustomPreset}
+                        onShowPresetInput={setShowPresetInput}
+                        onNewPresetNameChange={setNewPresetName}
+                        onNewPresetTextChange={setNewPresetText}
+                        onSavePreset={saveCustomPreset}
+                      />
+                      <HistoryDropdown
+                        history={history}
+                        onSelectItem={handleHistorySelect}
+                        onRemoveItem={removeFromHistory}
+                        onClearHistory={clearHistory}
+                      />
+                    </div>
                     <MorseTextDisplay
                       inputText={inputText}
                       currentTextIndex={currentTextIndex}

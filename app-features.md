@@ -48,7 +48,7 @@
 - Add one-click **copy button** for the morse output
 - Include "Copy as audio" option for formatted representation like `· – —`
 
-### 9. **History Feature**
+### 9. **History Feature**✅
 
 - Store recent conversions in localStorage
 - Allow users to restore previous inputs
