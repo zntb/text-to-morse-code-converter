@@ -10,24 +10,19 @@ import {
 } from 'react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
-import { Radio, Volume2, Settings2, Mic, MicOff } from 'lucide-react';
+import { Volume2, Settings2 } from 'lucide-react';
 import { MORSE_CODE_MAP, TEXT_TO_MORSE_MAP } from '@/morse-code-data';
 
-import { ModeToggle } from './mode-toggle';
-import {
-  ConversionModeToggle,
-  AudioInputModeToggle,
-  AudioInputMode,
-} from './conversion-mode-toggle';
+import { AudioInputMode } from './conversion-mode-toggle';
+import PresetButtons from './PresetButtons';
+import ConverterHeader from './ConverterHeader';
+import MorseToTextConverter from './MorseToTextConverter';
+import ConverterFooter from './ConverterFooter';
 import MorseTextDisplay from './MorseTextDisplay';
 import MorseOutputDisplay from './MorseOutputDisplay';
 import ControlPanel from './ControlPanel';
 import WaveformCanvas from './WaveformCanvas';
-import { debounce } from '@/lib/utils';
-import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
-
 // Preset messages interface
 interface PresetMessage {
   id: string;
@@ -35,13 +30,8 @@ interface PresetMessage {
   text: string;
 }
 
-// Built-in preset messages
-const BUILT_IN_PRESETS: PresetMessage[] = [
-  { id: 'sos', name: 'SOS', text: 'SOS' },
-  { id: 'mayday', name: 'MAYDAY', text: 'MAYDAY' },
-  { id: 'cq', name: 'CQ', text: 'CQ' },
-  { id: '73', name: '73', text: '73' },
-];
+import { debounce } from '@/lib/utils';
+import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -1023,38 +1013,12 @@ export default function Converter() {
   // --- Render ---
   return (
     <div className='min-h-screen w-full radio-static-bg'>
-      {/* Header */}
-      <header className='sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md'>
-        <div className='container mx-auto flex h-16 items-center justify-between px-4'>
-          <div className='flex items-center gap-3'>
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl bg-primary ${
-                isPlaying || isListening ? 'animate-pulse-glow' : ''
-              }`}
-            >
-              <Radio className='h-5 w-5 text-primary-foreground' />
-            </div>
-            <div>
-              <h1 className='text-lg font-semibold tracking-tight'>
-                Morse Converter
-              </h1>
-              <p className='text-xs text-muted-foreground hidden sm:block'>
-                {conversionMode === 'text-to-morse'
-                  ? 'Text to Morse Code'
-                  : 'Morse Code to Text'}
-              </p>
-            </div>
-          </div>
-          <div className='flex items-center gap-2'>
-            <ConversionModeToggle
-              mode={conversionMode}
-              setMode={setConversionMode}
-              isListening={isListening}
-            />
-            <ModeToggle />
-          </div>
-        </div>
-      </header>
+      <ConverterHeader
+        conversionMode={conversionMode}
+        setConversionMode={setConversionMode}
+        isListening={isListening}
+        isPlaying={isPlaying}
+      />
 
       {/* Main Content */}
       <main className='container mx-auto px-4 py-6'>
@@ -1072,138 +1036,18 @@ export default function Converter() {
                     </div>
                   </CardHeader>
                   <CardContent className='space-y-4'>
-                    {/* Preset Messages Section */}
-                    <div className='space-y-3'>
-                      <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                        <span>Quick Presets:</span>
-                      </div>
-                      <div className='flex flex-wrap gap-2'>
-                        {/* Built-in Presets */}
-                        {BUILT_IN_PRESETS.map(preset => (
-                          <Button
-                            key={preset.id}
-                            variant='outline'
-                            size='sm'
-                            onClick={() => applyPreset(preset.text)}
-                            className='text-xs'
-                          >
-                            {preset.name}
-                          </Button>
-                        ))}
-                        {/* Custom Presets */}
-                        {customPresets.map(preset => (
-                          <div
-                            key={preset.id}
-                            className='flex items-center gap-1'
-                          >
-                            <Button
-                              variant='outline'
-                              size='sm'
-                              onClick={() => applyPreset(preset.text)}
-                              className='text-xs'
-                            >
-                              {preset.name}
-                            </Button>
-                            <Button
-                              variant='ghost'
-                              size='sm'
-                              onClick={() => deleteCustomPreset(preset.id)}
-                              className='h-6 w-6 p-0 text-destructive hover:text-destructive'
-                            >
-                              <svg
-                                xmlns='http://www.w3.org/2000/svg'
-                                width='14'
-                                height='14'
-                                viewBox='0 0 24 24'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                              >
-                                <path d='M18 6 6 18' />
-                                <path d='m6 6 12 12' />
-                              </svg>
-                            </Button>
-                          </div>
-                        ))}
-                        {/* Add Custom Preset Button */}
-                        {showPresetInput ? (
-                          <div className='flex items-center gap-1'>
-                            <input
-                              type='text'
-                              placeholder='Name'
-                              value={newPresetName}
-                              onChange={e => setNewPresetName(e.target.value)}
-                              className='h-8 w-20 rounded-md border border-input bg-background px-2 text-xs'
-                            />
-                            <input
-                              type='text'
-                              placeholder='Message'
-                              value={newPresetText}
-                              onChange={e => setNewPresetText(e.target.value)}
-                              className='h-8 w-24 rounded-md border border-input bg-background px-2 text-xs'
-                            />
-                            <Button
-                              size='sm'
-                              onClick={() => {
-                                if (
-                                  newPresetName.trim() &&
-                                  newPresetText.trim()
-                                ) {
-                                  saveCustomPreset(
-                                    newPresetName.trim(),
-                                    newPresetText.trim(),
-                                  );
-                                }
-                              }}
-                              disabled={
-                                !newPresetName.trim() || !newPresetText.trim()
-                              }
-                              className='h-8'
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              variant='ghost'
-                              size='sm'
-                              onClick={() => {
-                                setShowPresetInput(false);
-                                setNewPresetName('');
-                                setNewPresetText('');
-                              }}
-                              className='h-8'
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant='secondary'
-                            size='sm'
-                            onClick={() => setShowPresetInput(true)}
-                            className='text-xs'
-                          >
-                            <svg
-                              xmlns='http://www.w3.org/2000/svg'
-                              width='14'
-                              height='14'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              className='mr-1'
-                            >
-                              <path d='M5 12h14' />
-                              <path d='M12 5v14' />
-                            </svg>
-                            Add Custom
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    <PresetButtons
+                      customPresets={customPresets}
+                      showPresetInput={showPresetInput}
+                      newPresetName={newPresetName}
+                      newPresetText={newPresetText}
+                      onApplyPreset={applyPreset}
+                      onDeletePreset={deleteCustomPreset}
+                      onShowPresetInput={setShowPresetInput}
+                      onNewPresetNameChange={setNewPresetName}
+                      onNewPresetTextChange={setNewPresetText}
+                      onSavePreset={saveCustomPreset}
+                    />
                     <MorseTextDisplay
                       inputText={inputText}
                       currentTextIndex={currentTextIndex}
@@ -1236,257 +1080,25 @@ export default function Converter() {
               </div>
             </>
           ) : (
-            <>
-              {/* Morse to Text Mode */}
-              {/* Audio Input Mode Toggle */}
-              <div className='animate-fade-in-up stagger-1'>
-                <Card className='overflow-hidden'>
-                  <CardHeader className='pb-4'>
-                    <div className='flex items-center gap-2'>
-                      <Mic className='h-4 w-4 text-primary' />
-                      <span className='text-sm font-medium'>Audio Input</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='space-y-4'>
-                    <AudioInputModeToggle
-                      audioInputMode={audioInputMode}
-                      setAudioInputMode={setAudioInputMode}
-                      isListening={isListening}
-                    />
-
-                    {/* Microphone Input Section */}
-                    {audioInputMode === 'microphone' && (
-                      <div className='flex flex-col items-center gap-4 py-4'>
-                        {/* Device Selection */}
-                        <div className='w-full max-w-xs'>
-                          <label className='text-sm font-medium mb-2 block'>
-                            Select Microphone
-                          </label>
-                          <select
-                            value={selectedDeviceId}
-                            onChange={e => setSelectedDeviceId(e.target.value)}
-                            onClick={() => {
-                              if (audioDevices.length === 0) {
-                                enumerateAudioDevices();
-                              }
-                            }}
-                            className='w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
-                            disabled={isListening}
-                          >
-                            {audioDevices.length === 0 ? (
-                              <option value=''>Click to load devices...</option>
-                            ) : (
-                              audioDevices.map(device => (
-                                <option
-                                  key={device.deviceId}
-                                  value={device.deviceId}
-                                >
-                                  {device.label ||
-                                    `Microphone ${device.deviceId.slice(0, 8)}`}
-                                </option>
-                              ))
-                            )}
-                          </select>
-                        </div>
-
-                        <Button
-                          onClick={
-                            isListening
-                              ? stopAudioRecognition
-                              : startAudioRecognition
-                          }
-                          size='lg'
-                          className={`gap-2 ${
-                            isListening
-                              ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
-                              : ''
-                          }`}
-                          disabled={
-                            !selectedDeviceId && audioDevices.length > 0
-                          }
-                        >
-                          {isListening ? (
-                            <>
-                              <MicOff className='h-4 w-4' />
-                              Stop Listening
-                            </>
-                          ) : (
-                            <>
-                              <Mic className='h-4 w-4' />
-                              Start Listening
-                            </>
-                          )}
-                        </Button>
-                        <p className='text-xs text-muted-foreground text-center'>
-                          {isListening
-                            ? 'Listening for Morse code... Speak or play Morse audio'
-                            : 'Select a microphone and click start to begin'}
-                        </p>
-
-                        {/* Test Microphone Section */}
-                        <div className='flex flex-col items-center gap-4 py-4 border-t mt-4'>
-                          <Button
-                            onClick={
-                              isTestingMic
-                                ? stopTestMicrophone
-                                : startTestMicrophone
-                            }
-                            variant={isTestingMic ? 'secondary' : 'outline'}
-                            size='lg'
-                            className='gap-2'
-                            disabled={
-                              !selectedDeviceId && audioDevices.length > 0
-                            }
-                          >
-                            {isTestingMic ? (
-                              <>
-                                <MicOff className='h-4 w-4' />
-                                Stop Test
-                              </>
-                            ) : (
-                              <>
-                                <Volume2 className='h-4 w-4' />
-                                Test Microphone
-                              </>
-                            )}
-                          </Button>
-
-                          {/* Audio Level Visualization */}
-                          {isTestingMic && (
-                            <div className='w-full max-w-xs space-y-2'>
-                              <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                                <span>Volume Level</span>
-                                <span
-                                  className={`font-medium ${
-                                    audioLevel > 10
-                                      ? 'text-green-500'
-                                      : 'text-yellow-500'
-                                  }`}
-                                >
-                                  {audioLevel > 10
-                                    ? 'Microphone Active'
-                                    : 'No Input Detected'}
-                                </span>
-                              </div>
-                              <div className='h-3 w-full overflow-hidden rounded-full bg-secondary'>
-                                <div
-                                  className={`h-full transition-all duration-75 ${
-                                    audioLevel > 10
-                                      ? 'bg-green-500'
-                                      : 'bg-yellow-500'
-                                  }`}
-                                  style={{ width: `${audioLevel}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Error Display */}
-                          {testMicError && (
-                            <div className='w-full max-w-xs rounded-md bg-destructive/10 p-3 text-sm text-destructive'>
-                              {testMicError}
-                            </div>
-                          )}
-
-                          <p className='text-xs text-muted-foreground text-center'>
-                            {isTestingMic
-                              ? 'Testing microphone... Make some noise to see the level'
-                              : 'Test your microphone before starting recognition'}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* File Input Section */}
-                    {audioInputMode === 'file' && (
-                      <div className='flex flex-col items-center gap-4 py-4'>
-                        <input
-                          type='file'
-                          accept='audio/*'
-                          onChange={e => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              // For file input, we'll parse the morse code manually
-                              // In a real app, you'd decode the audio file
-                              // For now, we'll just show a prompt
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                // Placeholder: In production, you'd decode the audio here
-                                alert(
-                                  'Audio file loaded. For demo, please enter Morse code manually below.',
-                                );
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          className='hidden'
-                          id='audio-file-input'
-                        />
-                        <Button
-                          variant='outline'
-                          onClick={() =>
-                            document.getElementById('audio-file-input')?.click()
-                          }
-                          size='lg'
-                          className='gap-2'
-                        >
-                          <Volume2 className='h-4 w-4' />
-                          Load Audio File
-                        </Button>
-                        <p className='text-xs text-muted-foreground text-center'>
-                          Load an audio file containing Morse code
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Morse Input Section */}
-              <div className='animate-fade-in-up stagger-2'>
-                <Card className='overflow-hidden'>
-                  <CardHeader className='pb-4'>
-                    <div className='flex items-center gap-2'>
-                      <span className='text-primary'>· –</span>
-                      <span className='text-sm font-medium'>Morse Input</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='space-y-4'>
-                    <textarea
-                      value={morseInput}
-                      onChange={e => setMorseInput(e.target.value)}
-                      placeholder='Enter Morse code here (e.g., ... --- ... for SOS)'
-                      className='min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
-                    />
-                    <p className='text-xs text-muted-foreground'>
-                      Use dots (.) and dashes (-) separated by spaces. Use / for
-                      word gaps.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Decoded Text Output */}
-              <div className='animate-fade-in-up stagger-3'>
-                <Card className='overflow-hidden'>
-                  <CardHeader className='pb-4'>
-                    <div className='flex items-center gap-2'>
-                      <Volume2 className='h-4 w-4 text-primary' />
-                      <span className='text-sm font-medium'>Decoded Text</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='space-y-4'>
-                    <div className='min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm'>
-                      {decodedText || (
-                        <span className='text-muted-foreground'>
-                          Decoded text will appear here...
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
+            <MorseToTextConverter
+              audioInputMode={audioInputMode}
+              setAudioInputMode={setAudioInputMode}
+              isListening={isListening}
+              morseInput={morseInput}
+              setMorseInput={setMorseInput}
+              decodedText={decodedText}
+              audioDevices={audioDevices}
+              selectedDeviceId={selectedDeviceId}
+              setSelectedDeviceId={setSelectedDeviceId}
+              startAudioRecognition={startAudioRecognition}
+              stopAudioRecognition={stopAudioRecognition}
+              enumerateAudioDevices={enumerateAudioDevices}
+              isTestingMic={isTestingMic}
+              startTestMicrophone={startTestMicrophone}
+              stopTestMicrophone={stopTestMicrophone}
+              audioLevel={audioLevel}
+              testMicError={testMicError}
+            />
           )}
 
           {/* Waveform Section - Only for Text to Morse mode */}
@@ -1557,20 +1169,7 @@ export default function Converter() {
             </div>
           )}
 
-          {/* Footer Info */}
-          <div className='animate-fade-in-up stagger-6'>
-            <p className='text-center text-xs text-muted-foreground'>
-              Press{' '}
-              <kbd className='rounded bg-muted px-1.5 py-0.5 font-mono text-xs'>
-                Ctrl + Space
-              </kbd>{' '}
-              to play/pause •{' '}
-              <kbd className='rounded bg-muted px-1.5 py-0.5 font-mono text-xs'>
-                Esc
-              </kbd>{' '}
-              to reset
-            </p>
-          </div>
+          <ConverterFooter />
         </div>
       </main>
     </div>
