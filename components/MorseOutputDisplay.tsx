@@ -7,6 +7,7 @@ interface MorseOutputDisplayProps {
   highlightIndex: number | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
   highlightRef: React.RefObject<HTMLSpanElement | null>;
+  currentDotDashType: 'dot' | 'dash' | null;
 }
 
 const MorseOutputDisplay = memo(function MorseOutputDisplay({
@@ -14,6 +15,7 @@ const MorseOutputDisplay = memo(function MorseOutputDisplay({
   highlightIndex,
   containerRef,
   highlightRef,
+  currentDotDashType,
 }: MorseOutputDisplayProps) {
   return (
     <div className='space-y-3'>
@@ -32,6 +34,9 @@ const MorseOutputDisplay = memo(function MorseOutputDisplay({
                   key={idx}
                   char={char}
                   isHighlighted={idx === highlightIndex}
+                  currentDotDashType={
+                    idx === highlightIndex ? currentDotDashType : null
+                  }
                   ref={idx === highlightIndex ? highlightRef : undefined}
                 />
               ))
@@ -46,13 +51,13 @@ const MorseOutputDisplay = memo(function MorseOutputDisplay({
       {/* Legend */}
       <div className='flex items-center gap-4 text-xs text-muted-foreground'>
         <div className='flex items-center gap-1.5'>
-          <span className='inline-block w-3 h-3 rounded bg-primary/20 text-center leading-3 text-primary'>
+          <span className='inline-block w-3 h-3 rounded bg-blue-500/20 text-center leading-3 text-blue-500'>
             ·
           </span>
           <span>Dot</span>
         </div>
         <div className='flex items-center gap-1.5'>
-          <span className='inline-block w-3 h-3 rounded bg-primary/20 text-center leading-3 text-primary'>
+          <span className='inline-block w-3 h-3 rounded bg-orange-500/20 text-center leading-3 text-orange-500'>
             −
           </span>
           <span>Dash</span>
@@ -69,31 +74,43 @@ const MorseOutputDisplay = memo(function MorseOutputDisplay({
 interface MorseCharProps {
   char: string;
   isHighlighted: boolean;
+  currentDotDashType: 'dot' | 'dash' | null;
 }
 
 const MorseChar = memo(
   React.forwardRef<HTMLSpanElement, MorseCharProps>(
-    ({ char, isHighlighted }, ref) => {
+    ({ char, isHighlighted, currentDotDashType }, ref) => {
       // Styling based on character type
       let charClass = '';
       if (char === '.') {
-        charClass = 'text-primary font-bold';
+        charClass = 'text-blue-500 font-bold';
       } else if (char === '-') {
-        charClass = 'text-primary font-bold';
+        charClass = 'text-orange-500 font-bold';
       } else if (char === ' ') {
         charClass = 'text-muted-foreground/40';
       } else {
         charClass = 'text-foreground';
       }
 
+      // Different highlight colors for dots vs dashes
+      const getHighlightClass = () => {
+        if (!isHighlighted) return charClass;
+
+        if (currentDotDashType === 'dot') {
+          // Blue glow for dots
+          return 'scale-125 bg-blue-500 text-white shadow-lg shadow-blue-500/50 rounded px-0.5';
+        } else if (currentDotDashType === 'dash') {
+          // Orange glow for dashes
+          return 'scale-125 bg-orange-500 text-white shadow-lg shadow-orange-500/50 rounded px-0.5';
+        }
+        // Default highlight
+        return 'scale-125 bg-primary text-primary-foreground shadow-lg shadow-primary/30 rounded px-0.5';
+      };
+
       return (
         <span
           ref={ref}
-          className={`inline-block transition-all duration-100 ${
-            isHighlighted
-              ? 'scale-125 bg-primary text-primary-foreground shadow-lg shadow-primary/30 rounded px-0.5'
-              : charClass
-          }`}
+          className={`inline-block transition-all duration-100 ${getHighlightClass()}`}
         >
           {char === ' ' ? '\u00A0' : char}
         </span>

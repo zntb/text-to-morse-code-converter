@@ -33,6 +33,7 @@ interface ControlPanelProps {
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleDownload: () => void;
   exportAsWav: () => void;
+  currentDotDashType: 'dot' | 'dash' | null;
 }
 
 export default function ControlPanel({
@@ -53,8 +54,18 @@ export default function ControlPanel({
   handleUpload,
   handleDownload,
   exportAsWav,
+  currentDotDashType,
 }: ControlPanelProps) {
   const hasContent = morseCode.trim();
+
+  // LED indicator color based on current dot/dash type
+  const getLedColor = () => {
+    if (currentDotDashType === 'dot')
+      return 'bg-blue-500 shadow-lg shadow-blue-500/70';
+    if (currentDotDashType === 'dash')
+      return 'bg-orange-500 shadow-lg shadow-orange-500/70';
+    return 'bg-gray-400';
+  };
 
   return (
     <div className='space-y-6'>
@@ -138,29 +149,47 @@ export default function ControlPanel({
 
       {/* Main Controls */}
       <div className='space-y-4'>
-        {/* Play/Stop Button */}
-        <Button
-          onClick={playMorseCode}
-          disabled={!hasContent}
-          size='lg'
-          className={`w-full gap-2 transition-all ${
-            isPlaying
-              ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
-              : ''
-          }`}
-        >
-          {isPlaying ? (
-            <>
-              <Square className='h-4 w-4' />
-              Stop
-            </>
-          ) : (
-            <>
-              <Play className='h-4 w-4' />
-              Play Morse Code
-            </>
-          )}
-        </Button>
+        {/* LED Indicator and Play/Stop Button */}
+        <div className='flex items-center gap-3'>
+          {/* LED Indicator */}
+          <div className='flex flex-col items-center gap-1'>
+            <div
+              className={`h-4 w-4 rounded-full transition-all duration-75 ${getLedColor()} ${
+                currentDotDashType ? 'scale-110' : ''
+              }`}
+            />
+            <span className='text-[10px] text-muted-foreground uppercase tracking-wider'>
+              {currentDotDashType === 'dot'
+                ? 'DOT'
+                : currentDotDashType === 'dash'
+                ? 'DASH'
+                : 'LED'}
+            </span>
+          </div>
+          {/* Play/Stop Button */}
+          <Button
+            onClick={playMorseCode}
+            disabled={!hasContent}
+            size='lg'
+            className={`flex-1 gap-2 transition-all ${
+              isPlaying
+                ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
+                : ''
+            }`}
+          >
+            {isPlaying ? (
+              <>
+                <Square className='h-4 w-4' />
+                Stop
+              </>
+            ) : (
+              <>
+                <Play className='h-4 w-4' />
+                Play Morse Code
+              </>
+            )}
+          </Button>
+        </div>
 
         {/* Secondary Controls */}
         <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>

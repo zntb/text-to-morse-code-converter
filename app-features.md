@@ -31,7 +31,7 @@
 - Display random characters and track accuracy
 - Progressive difficulty levels
 
-### 6. **Enhanced Visual Feedback**
+### 6. **Enhanced Visual Feedback**✅
 
 - Add **LED-style indicator** that lights up during dot/dash playback
 - Implement **character highlighting** with different colors for dots vs dashes

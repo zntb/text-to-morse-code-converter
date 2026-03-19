@@ -44,6 +44,10 @@ export default function Converter() {
   const [repeat, setRepeat] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
   const [currentTextIndex, setCurrentTextIndex] = useState<number | null>(null);
+  const [currentDotDashType, setCurrentDotDashType] = useState<
+    'dot' | 'dash' | null
+  >(null);
+  const [isFlashing, setIsFlashing] = useState(false);
   const [frequency, setFrequency] = useState([600]);
   const [volume, setVolume] = useState([20]);
   const [showControls, setShowControls] = useState(true);
@@ -565,6 +569,10 @@ export default function Converter() {
       wpm: number,
       abortSignal?: AbortSignal,
     ): Promise<void> => {
+      // Set current dot/dash type for LED indicator and highlighting
+      setCurrentDotDashType(type);
+      setIsFlashing(true);
+
       const context = initAudioContext();
       if (!context) throw new Error('AudioContext not available');
 
@@ -572,7 +580,11 @@ export default function Converter() {
         await context.resume();
       }
 
-      if (abortSignal?.aborted) return;
+      if (abortSignal?.aborted) {
+        setCurrentDotDashType(null);
+        setIsFlashing(false);
+        return;
+      }
 
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
@@ -626,6 +638,10 @@ export default function Converter() {
       }
 
       await sleep(duration * 1000);
+
+      // Clear flash and dot/dash type after tone ends
+      setIsFlashing(false);
+      setCurrentDotDashType(null);
     },
     [frequency, volume, initAudioContext],
   );
@@ -638,6 +654,8 @@ export default function Converter() {
       isPlayingRef.current = false;
       setHighlightIndex(null);
       setCurrentTextIndex(null);
+      setCurrentDotDashType(null);
+      setIsFlashing(false);
       return;
     }
 
@@ -723,6 +741,8 @@ export default function Converter() {
       isPlayingRef.current = false;
       setHighlightIndex(null);
       setCurrentTextIndex(null);
+      setCurrentDotDashType(null);
+      setIsFlashing(false);
     }
   }, [
     morseCode,
@@ -1066,7 +1086,15 @@ export default function Converter() {
 
               {/* Output Section */}
               <div className='animate-fade-in-up stagger-2'>
-                <Card className='overflow-hidden'>
+                <Card
+                  className={`overflow-hidden transition-all duration-75 ${
+                    isFlashing
+                      ? currentDotDashType === 'dot'
+                        ? 'ring-4 ring-blue-500/50 shadow-lg shadow-blue-500/30'
+                        : 'ring-4 ring-orange-500/50 shadow-lg shadow-orange-500/30'
+                      : ''
+                  }`}
+                >
                   <CardHeader className='pb-4'>
                     <div className='flex items-center gap-2'>
                       <span className='text-primary'>· –</span>
@@ -1079,6 +1107,7 @@ export default function Converter() {
                       highlightIndex={highlightIndex}
                       containerRef={containerRef}
                       highlightRef={highlightRef}
+                      currentDotDashType={currentDotDashType}
                     />
                   </CardContent>
                 </Card>
@@ -1164,12 +1193,15 @@ export default function Converter() {
                         isPlayingRef.current = false;
                         setHighlightIndex(null);
                         setCurrentTextIndex(null);
+                        setCurrentDotDashType(null);
+                        setIsFlashing(false);
                       }}
                       setInputText={setInputText}
                       fileInputRef={fileInputRef}
                       handleUpload={handleUpload}
                       handleDownload={handleDownload}
                       exportAsWav={exportAsWav}
+                      currentDotDashType={currentDotDashType}
                     />
                   </CardContent>
                 </Card>
