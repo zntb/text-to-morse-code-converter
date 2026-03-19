@@ -13,7 +13,7 @@ import {
   Volume2,
 } from 'lucide-react';
 import ResetDialog from './reset-dialog';
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 
 interface ControlPanelProps {
   speed: number[];
@@ -34,6 +34,7 @@ interface ControlPanelProps {
   handleDownload: () => void;
   exportAsWav: () => void;
   currentDotDashType: 'dot' | 'dash' | null;
+  isBottomSheet?: boolean;
 }
 
 export default function ControlPanel({
@@ -55,8 +56,51 @@ export default function ControlPanel({
   handleDownload,
   exportAsWav,
   currentDotDashType,
+  isBottomSheet = false,
 }: ControlPanelProps) {
   const hasContent = morseCode.trim();
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const SWIPE_THRESHOLD = 50;
+
+  // Handle swipe gestures for play/pause
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchEndX - touchStartX.current;
+      const deltaY = touchEndY - touchStartY.current;
+
+      // Only trigger if horizontal swipe is dominant
+      if (
+        Math.abs(deltaX) > Math.abs(deltaY) &&
+        Math.abs(deltaX) > SWIPE_THRESHOLD
+      ) {
+        if (deltaX > 0) {
+          // Swipe right - Play
+          if (!isPlaying && hasContent) {
+            playMorseCode();
+          }
+        } else {
+          // Swipe left - Stop
+          if (isPlaying) {
+            stopPlayback();
+          }
+        }
+      }
+
+      touchStartX.current = null;
+      touchStartY.current = null;
+    },
+    [isPlaying, hasContent, playMorseCode, stopPlayback],
+  );
 
   // LED indicator color based on current dot/dash type
   const getLedColor = () => {
@@ -67,17 +111,30 @@ export default function ControlPanel({
     return 'bg-gray-400';
   };
 
+  // Button sizes based on mode
+  const buttonSize = isBottomSheet ? 'lg' : 'default';
+  const secondaryButtonSize = isBottomSheet ? 'default' : 'sm';
+  const iconSize = isBottomSheet ? 'h-5 w-5' : 'h-3 w-3';
+  const playButtonIconSize = isBottomSheet ? 'h-6 w-6' : 'h-4 w-4';
+
   return (
-    <div className='space-y-6'>
+    <div className={isBottomSheet ? 'space-y-6 pb-8' : 'space-y-6'}>
       {/* Speed, Frequency, and Volume Sliders */}
-      <div className='grid gap-6 sm:grid-cols-3'>
+      <div
+        className={isBottomSheet ? 'grid gap-6' : 'grid gap-6 sm:grid-cols-3'}
+      >
         {/* Speed Control */}
-        <div className='space-y-3'>
+        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
           <div className='flex items-center justify-between'>
-            <Label htmlFor='speed-slider' className='text-sm font-medium'>
+            <Label
+              htmlFor='speed-slider'
+              className={
+                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
+              }
+            >
               Speed
             </Label>
-            <span className='rounded-md bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary'>
+            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
               {speed[0]} WPM
             </span>
           </div>
@@ -88,21 +145,26 @@ export default function ControlPanel({
             step={1}
             value={speed}
             onValueChange={setSpeed}
-            className='py-1'
+            className={isBottomSheet ? 'py-3' : 'py-1'}
           />
-          <div className='flex justify-between text-xs text-muted-foreground'>
+          <div className='flex justify-between text-sm text-muted-foreground'>
             <span>Slow</span>
             <span>Fast</span>
           </div>
         </div>
 
         {/* Frequency Control */}
-        <div className='space-y-3'>
+        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
           <div className='flex items-center justify-between'>
-            <Label htmlFor='freq-slider' className='text-sm font-medium'>
+            <Label
+              htmlFor='freq-slider'
+              className={
+                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
+              }
+            >
               Frequency
             </Label>
-            <span className='rounded-md bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary'>
+            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
               {frequency[0]} Hz
             </span>
           </div>
@@ -113,21 +175,26 @@ export default function ControlPanel({
             step={10}
             value={frequency}
             onValueChange={setFrequency}
-            className='py-1'
+            className={isBottomSheet ? 'py-3' : 'py-1'}
           />
-          <div className='flex justify-between text-xs text-muted-foreground'>
+          <div className='flex justify-between text-sm text-muted-foreground'>
             <span>300 Hz</span>
             <span>1000 Hz</span>
           </div>
         </div>
 
         {/* Volume Control */}
-        <div className='space-y-3'>
+        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
           <div className='flex items-center justify-between'>
-            <Label htmlFor='volume-slider' className='text-sm font-medium'>
+            <Label
+              htmlFor='volume-slider'
+              className={
+                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
+              }
+            >
               Volume
             </Label>
-            <span className='rounded-md bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary'>
+            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
               {volume[0]}%
             </span>
           </div>
@@ -138,9 +205,9 @@ export default function ControlPanel({
             step={1}
             value={volume}
             onValueChange={setVolume}
-            className='py-1'
+            className={isBottomSheet ? 'py-3' : 'py-1'}
           />
-          <div className='flex justify-between text-xs text-muted-foreground'>
+          <div className='flex justify-between text-sm text-muted-foreground'>
             <span>0%</span>
             <span>100%</span>
           </div>
@@ -148,17 +215,23 @@ export default function ControlPanel({
       </div>
 
       {/* Main Controls */}
-      <div className='space-y-4'>
+      <div className={isBottomSheet ? 'space-y-5' : 'space-y-4'}>
         {/* LED Indicator and Play/Stop Button */}
         <div className='flex items-center gap-3'>
           {/* LED Indicator */}
           <div className='flex flex-col items-center gap-1'>
             <div
-              className={`h-4 w-4 rounded-full transition-all duration-75 ${getLedColor()} ${
+              className={`h-5 w-5 rounded-full transition-all duration-75 ${getLedColor()} ${
                 currentDotDashType ? 'scale-110' : ''
               }`}
             />
-            <span className='text-[10px] text-muted-foreground uppercase tracking-wider'>
+            <span
+              className={
+                isBottomSheet
+                  ? 'text-xs text-muted-foreground uppercase tracking-wider'
+                  : 'text-[10px] text-muted-foreground uppercase tracking-wider'
+              }
+            >
               {currentDotDashType === 'dot'
                 ? 'DOT'
                 : currentDotDashType === 'dash'
@@ -166,33 +239,52 @@ export default function ControlPanel({
                 : 'LED'}
             </span>
           </div>
-          {/* Play/Stop Button */}
-          <Button
-            onClick={playMorseCode}
-            disabled={!hasContent}
-            size='lg'
-            className={`flex-1 gap-2 transition-all ${
-              isPlaying
-                ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
-                : ''
-            }`}
+
+          {/* Play/Stop Button with touch/swipe support */}
+          <div
+            className='flex-1 touch-pan-y'
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
-            {isPlaying ? (
-              <>
-                <Square className='h-4 w-4' />
-                Stop
-              </>
-            ) : (
-              <>
-                <Play className='h-4 w-4' />
-                Play Morse Code
-              </>
+            <Button
+              onClick={playMorseCode}
+              disabled={!hasContent}
+              size={buttonSize}
+              className={`w-full gap-2 transition-all ${
+                isPlaying
+                  ? 'bg-destructive hover:bg-destructive/90 animate-pulse-glow'
+                  : ''
+              }`}
+            >
+              {isPlaying ? (
+                <>
+                  <Square className={playButtonIconSize} />
+                  {isBottomSheet ? 'Stop Playback' : 'Stop'}
+                </>
+              ) : (
+                <>
+                  <Play className={playButtonIconSize} />
+                  {isBottomSheet ? 'Play Morse Code' : 'Play Morse Code'}
+                </>
+              )}
+            </Button>
+            {/* Swipe hint for mobile */}
+            {isBottomSheet && (
+              <p className='mt-2 text-center text-xs text-muted-foreground'>
+                Swipe right to play • Swipe left to stop
+              </p>
             )}
-          </Button>
+          </div>
         </div>
 
         {/* Secondary Controls */}
-        <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
+        <div
+          className={
+            isBottomSheet
+              ? 'grid grid-cols-2 gap-3'
+              : 'grid grid-cols-2 sm:grid-cols-4 gap-2'
+          }
+        >
           <ResetDialog
             onConfirm={() => {
               stopPlayback();
@@ -205,11 +297,11 @@ export default function ControlPanel({
             trigger={
               <Button
                 variant='outline'
-                size='sm'
+                size={secondaryButtonSize}
                 className='w-full gap-1'
                 disabled={!hasContent}
               >
-                <RotateCcw className='h-3 w-3' />
+                <RotateCcw className={iconSize} />
                 Reset
               </Button>
             }
@@ -224,69 +316,79 @@ export default function ControlPanel({
           />
           <Button
             variant='outline'
-            size='sm'
+            size={secondaryButtonSize}
             className='w-full gap-1'
             onClick={() => fileInputRef.current?.click()}
           >
-            <UploadCloud className='h-3 w-3' />
+            <UploadCloud className={iconSize} />
             Upload
           </Button>
 
           <Button
             variant='outline'
-            size='sm'
+            size={secondaryButtonSize}
             className='w-full gap-1'
             onClick={handleDownload}
             disabled={!hasContent}
           >
-            <Download className='h-3 w-3' />
+            <Download className={iconSize} />
             Export
           </Button>
 
           <Button
             variant='outline'
-            size='sm'
+            size={secondaryButtonSize}
             className='w-full gap-1'
             onClick={exportAsWav}
             disabled={!hasContent}
           >
-            <Volume2 className='h-3 w-3' />
+            <Volume2 className={iconSize} />
             Audio
           </Button>
 
           <Button
             variant={repeat ? 'default' : 'outline'}
-            size='sm'
+            size={secondaryButtonSize}
             className={`w-full gap-1 ${repeat ? '' : 'opacity-70'}`}
             onClick={() => setRepeat(!repeat)}
           >
-            <Repeat className='h-3 w-3' />
+            <Repeat className={iconSize} />
             Repeat
           </Button>
         </div>
       </div>
 
       {/* Repeat Toggle (Mobile-friendly alternative) */}
-      <div className='flex items-center gap-3 rounded-lg bg-muted/50 p-3'>
+      <div
+        className={
+          isBottomSheet
+            ? 'flex items-center gap-4 rounded-lg bg-muted/50 p-4'
+            : 'flex items-center gap-3 rounded-lg bg-muted/50 p-3'
+        }
+      >
         <button
           type='button'
           id='repeat-toggle'
           onClick={() => setRepeat(!repeat)}
-          className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+          className={`relative h-8 w-14 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
             repeat ? 'bg-primary' : 'bg-muted-foreground/30'
           }`}
           role='switch'
           aria-checked={repeat}
         >
           <span
-            className={`block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-              repeat ? 'translate-x-5' : 'translate-x-0.5'
+            className={`block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ${
+              repeat ? 'translate-x-6' : 'translate-x-0.5'
             }`}
           />
         </button>
         <Label
           htmlFor='repeat-toggle'
-          className='cursor-pointer text-sm text-muted-foreground'
+          className={
+            isBottomSheet
+              ? 'cursor-pointer text-base text-muted-foreground'
+              : 'cursor-pointer text-sm text-muted-foreground'
+          }
         >
           Repeat playback
         </Label>

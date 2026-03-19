@@ -10,8 +10,15 @@ import {
 } from 'react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 
-import { Volume2, Settings2 } from 'lucide-react';
+import { Volume2, Settings2, Smartphone } from 'lucide-react';
 import { MORSE_CODE_MAP, TEXT_TO_MORSE_MAP } from '@/morse-code-data';
 
 import { AudioInputMode } from './conversion-mode-toggle';
@@ -54,6 +61,7 @@ export default function Converter() {
   const [frequency, setFrequency] = useState([600]);
   const [volume, setVolume] = useState([20]);
   const [showControls, setShowControls] = useState(true);
+  const [showSettingsSheet, setShowSettingsSheet] = useState(false);
 
   // Conversion mode state
   const [conversionMode, setConversionMode] = useState<
@@ -1275,7 +1283,24 @@ export default function Converter() {
             <div className='animate-fade-in-up stagger-4'>
               <button
                 onClick={() => setShowControls(!showControls)}
-                className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent'
+                className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent md:hidden'
+              >
+                <div className='flex items-center gap-2'>
+                  <Smartphone className='h-4 w-4' />
+                  <span>Settings</span>
+                </div>
+                <span
+                  className={`transition-transform duration-200 ${
+                    showControls ? 'rotate-180' : ''
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+              {/* Desktop toggle - always visible on desktop */}
+              <button
+                onClick={() => setShowControls(!showControls)}
+                className='hidden w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent md:flex'
               >
                 <div className='flex items-center gap-2'>
                   <Settings2 className='h-4 w-4' />
@@ -1289,14 +1314,25 @@ export default function Converter() {
                   ▼
                 </span>
               </button>
+              {/* Mobile settings button - opens bottom sheet */}
+              <button
+                onClick={() => setShowSettingsSheet(true)}
+                className='flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-accent md:hidden'
+              >
+                <div className='flex items-center gap-2'>
+                  <Settings2 className='h-4 w-4' />
+                  <span>Playback Settings</span>
+                </div>
+                <span className='text-muted-foreground'>▼</span>
+              </button>
             </div>
           )}
 
-          {/* Control Panel - Only for Text to Morse and Morse to Text modes */}
+          {/* Control Panel - Desktop version - Only visible on md+ screens */}
           {(conversionMode === 'text-to-morse' ||
             conversionMode === 'morse-to-text') &&
             showControls && (
-              <div className='animate-fade-in-up stagger-5'>
+              <div className='animate-fade-in-up stagger-5 hidden md:block'>
                 <Card className='overflow-hidden'>
                   <CardContent className='pt-6'>
                     <ControlPanel
@@ -1326,11 +1362,56 @@ export default function Converter() {
                       handleDownload={handleDownload}
                       exportAsWav={exportAsWav}
                       currentDotDashType={currentDotDashType}
+                      isBottomSheet={false}
                     />
                   </CardContent>
                 </Card>
               </div>
             )}
+
+          {/* Bottom Sheet for Mobile Settings */}
+          <Sheet open={showSettingsSheet} onOpenChange={setShowSettingsSheet}>
+            <SheetContent className='w-full'>
+              <SheetHeader>
+                <SheetTitle>Playback Settings</SheetTitle>
+                <SheetDescription>
+                  Adjust speed, frequency, volume and more
+                </SheetDescription>
+              </SheetHeader>
+              <div className='mt-4'>
+                <ControlPanel
+                  speed={speed}
+                  setSpeed={setSpeed}
+                  frequency={frequency}
+                  setFrequency={setFrequency}
+                  volume={volume}
+                  setVolume={setVolume}
+                  repeat={repeat}
+                  setRepeat={setRepeat}
+                  playMorseCode={playMorseCode}
+                  isPlaying={isPlaying}
+                  morseCode={morseCode}
+                  stopPlayback={() => {
+                    playbackAbortControllerRef.current?.abort();
+                    setIsPlaying(false);
+                    isPlayingRef.current = false;
+                    setHighlightIndex(null);
+                    setCurrentTextIndex(null);
+                    setCurrentDotDashType(null);
+                    setIsFlashing(false);
+                    setShowSettingsSheet(false);
+                  }}
+                  setInputText={setInputText}
+                  fileInputRef={fileInputRef}
+                  handleUpload={handleUpload}
+                  handleDownload={handleDownload}
+                  exportAsWav={exportAsWav}
+                  currentDotDashType={currentDotDashType}
+                  isBottomSheet={true}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
 
           <ConverterFooter />
         </div>
