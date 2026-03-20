@@ -84,7 +84,7 @@
 - Implement alternative timing method where inter-character gaps are longer at lower speeds
 - This is how professional morse code is typically taught
 
-### 15. **Multiple Audio Waveforms**
+### 15. **Multiple Audio Waveforms**✅
 
 - Add option to choose between sine, square, sawtooth, or triangle wave tones
 - Different tones can help distinguish playback

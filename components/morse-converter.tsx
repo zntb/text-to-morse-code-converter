@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import {
@@ -668,13 +669,275 @@ export default function Converter() {
   }, [scrollToHighlight]);
 
   // --- Enhanced Playback Logic ---
+  // Pre-schedule all audio events for smooth, precise playback
+  const playAllTonesScheduled = useCallback(
+    async (
+      morseString: string,
+      timing: {
+        dotDuration: number;
+        dashDuration: number;
+        letterGap: number;
+        wordGap: number;
+        elementGap: number;
+      },
+      abortSignal: AbortSignal,
+    ): Promise<number> => {
+      const context = initAudioContext();
+      if (!context) throw new Error('AudioContext not available');
+
+      if (context.state === 'suspended') {
+        await context.resume();
+      }
+
+      if (abortSignal.aborted) return 0;
+
+      const { dotDuration, dashDuration, letterGap, wordGap, elementGap } =
+        timing;
+      const gainValue = getGain(volume[0] / 100);
+      const fadeTime = AUDIO_CONFIG.FADE_TIME;
+
+      // Build a schedule of events for UI updates
+      interface ScheduleEvent {
+        time: number;
+        type: 'start' | 'end';
+        morseIndex: number;
+        textIndex: number | null;
+        dotDashType: 'dot' | 'dash' | null;
+      }
+
+      const schedule: ScheduleEvent[] = [];
+      let currentTime = context.currentTime + 0.05; // Small initial delay
+
+      // Calculate total duration first
+      let totalDurationSeconds = 0;
+      for (let i = 0; i < morseString.length; i++) {
+        const char = morseString[i];
+        if (char === '.') {
+          totalDurationSeconds += dotDuration + elementGap;
+        } else if (char === '-') {
+          totalDurationSeconds += dashDuration + elementGap;
+        } else if (char === ' ') {
+          totalDurationSeconds += letterGap - elementGap;
+        } else if (char === '/') {
+          totalDurationSeconds += wordGap - elementGap;
+        }
+      }
+
+      // Build the schedule while calculating start times
+      for (let i = 0; i < morseString.length; i++) {
+        const char = morseString[i];
+        const currentTextIdx = morseToTextMapping[i] ?? null;
+
+        if (char === '.') {
+          schedule.push({
+            time: currentTime,
+            type: 'start',
+            morseIndex: i,
+            textIndex: currentTextIdx,
+            dotDashType: 'dot',
+          });
+          currentTime += dotDuration;
+          schedule.push({
+            time: currentTime,
+            type: 'end',
+            morseIndex: i,
+            textIndex: currentTextIdx,
+            dotDashType: 'dot',
+          });
+          currentTime += elementGap;
+        } else if (char === '-') {
+          schedule.push({
+            time: currentTime,
+            type: 'start',
+            morseIndex: i,
+            textIndex: currentTextIdx,
+            dotDashType: 'dash',
+          });
+          currentTime += dashDuration;
+          schedule.push({
+            time: currentTime,
+            type: 'end',
+            morseIndex: i,
+            textIndex: currentTextIdx,
+            dotDashType: 'dash',
+          });
+          currentTime += elementGap;
+        } else if (char === ' ') {
+          currentTime += letterGap - elementGap;
+        } else if (char === '/') {
+          currentTime += wordGap - elementGap;
+        }
+      }
+
+      // Now schedule all audio events upfront for precise timing
+      const oscillators: OscillatorNode[] = [];
+      const gainNodes: GainNode[] = [];
+
+      // Calculate tone start times
+      const toneStartTimes: number[] = [];
+      let toneTime = context.currentTime + 0.05;
+      for (let i = 0; i < morseString.length; i++) {
+        const char = morseString[i];
+        if (char === '.') {
+          toneStartTimes.push(toneTime);
+          toneTime += dotDuration + elementGap;
+        } else if (char === '-') {
+          toneStartTimes.push(toneTime);
+          toneTime += dashDuration + elementGap;
+        } else if (char === ' ') {
+          toneTime += letterGap - elementGap;
+        } else if (char === '/') {
+          toneTime += wordGap - elementGap;
+        }
+      }
+
+      // Create and schedule oscillators
+      let toneIndex = 0;
+      for (let i = 0; i < morseString.length; i++) {
+        const char = morseString[i];
+        if (char === '.' || char === '-') {
+          const duration = char === '.' ? dotDuration : dashDuration;
+          const toneStartTime = toneStartTimes[toneIndex];
+          toneIndex++;
+
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+
+          oscillator.type = waveform;
+          oscillator.frequency.setValueAtTime(frequency[0], toneStartTime);
+
+          oscillator.connect(gainNode);
+          if (analyserRef.current) {
+            gainNode.connect(analyserRef.current);
+            analyserRef.current.connect(context.destination);
+          } else {
+            gainNode.connect(context.destination);
+          }
+
+          // Fade in/out
+          gainNode.gain.setValueAtTime(0, toneStartTime);
+          gainNode.gain.linearRampToValueAtTime(
+            gainValue,
+            toneStartTime + fadeTime,
+          );
+          gainNode.gain.linearRampToValueAtTime(
+            gainValue,
+            toneStartTime + duration - fadeTime,
+          );
+          gainNode.gain.linearRampToValueAtTime(0, toneStartTime + duration);
+
+          oscillator.start(toneStartTime);
+          oscillator.stop(toneStartTime + duration);
+
+          oscillators.push(oscillator);
+          gainNodes.push(gainNode);
+        }
+      }
+
+      // Handle abort - stop all oscillators
+      const cleanup = () => {
+        oscillators.forEach(osc => {
+          try {
+            osc.stop();
+            osc.disconnect();
+          } catch (e) {
+            // Ignore
+          }
+        });
+        gainNodes.forEach(gain => {
+          try {
+            gain.disconnect();
+          } catch (e) {
+            // Ignore
+          }
+        });
+      };
+
+      abortSignal.addEventListener('abort', cleanup);
+
+      // Use requestAnimationFrame to sync UI with scheduled audio
+      const startTime = context.currentTime;
+      let eventIndex = 0;
+      const isPlayingScheduled = true;
+
+      const updateUI = () => {
+        if (abortSignal.aborted || !isPlayingScheduled) {
+          setCurrentDotDashType(null);
+          setIsFlashing(false);
+          setHighlightIndex(null);
+          setCurrentTextIndex(null);
+          return;
+        }
+
+        const currentAudioTime = context.currentTime;
+
+        // Process all events that should have happened by now
+        while (eventIndex < schedule.length) {
+          const event = schedule[eventIndex];
+
+          if (currentAudioTime >= event.time) {
+            if (event.type === 'start') {
+              setHighlightIndex(event.morseIndex);
+              setCurrentTextIndex(event.textIndex);
+              if (event.dotDashType) {
+                setCurrentDotDashType(event.dotDashType);
+                setIsFlashing(true);
+              }
+            } else if (event.type === 'end') {
+              setCurrentDotDashType(null);
+              setIsFlashing(false);
+            }
+            eventIndex++;
+          } else {
+            break;
+          }
+        }
+
+        // Check if playback is complete
+        if (schedule.length > 0) {
+          const lastEvent = schedule[schedule.length - 1];
+          if (currentAudioTime >= lastEvent.time) {
+            setCurrentDotDashType(null);
+            setIsFlashing(false);
+            setHighlightIndex(null);
+            setCurrentTextIndex(null);
+            return;
+          }
+        }
+
+        // Schedule next update
+        if (isPlayingScheduled) {
+          requestAnimationFrame(updateUI);
+        }
+      };
+
+      requestAnimationFrame(updateUI);
+
+      // Return a promise that resolves when playback is complete
+      return new Promise<number>(resolve => {
+        // Listen for abort
+        const abortHandler = () => {
+          resolve(0);
+        };
+        abortSignal.addEventListener('abort', abortHandler);
+
+        // Resolve after total duration
+        setTimeout(() => {
+          abortSignal.removeEventListener('abort', abortHandler);
+          resolve(totalDurationSeconds * 1000);
+        }, totalDurationSeconds * 1000);
+      });
+    },
+    [frequency, volume, waveform, initAudioContext, morseToTextMapping],
+  );
+
+  // Keep the playTone for simple single-tone playback (like in reference table)
   const playTone = useCallback(
     async (
       type: 'dot' | 'dash',
       duration: number,
       abortSignal?: AbortSignal,
     ): Promise<void> => {
-      // Set current dot/dash type for LED indicator and highlighting
       setCurrentDotDashType(type);
       setIsFlashing(true);
 
@@ -697,7 +960,6 @@ export default function Converter() {
       oscillator.type = waveform;
       oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
 
-      // Connect audio nodes
       oscillator.connect(gainNode);
       if (analyserRef.current) {
         gainNode.connect(analyserRef.current);
@@ -706,11 +968,9 @@ export default function Converter() {
         gainNode.connect(context.destination);
       }
 
-      // Add fade in/out to prevent audio clicks
       const currentTime = context.currentTime;
-
-      gainNode.gain.setValueAtTime(0, currentTime);
       const gainValue = getGain(volume[0] / 100);
+      gainNode.gain.setValueAtTime(0, currentTime);
       gainNode.gain.linearRampToValueAtTime(
         gainValue,
         currentTime + AUDIO_CONFIG.FADE_TIME,
@@ -724,23 +984,20 @@ export default function Converter() {
       oscillator.start(currentTime);
       oscillator.stop(currentTime + duration);
 
-      // Cleanup on abort
       if (abortSignal) {
         abortSignal.addEventListener('abort', () => {
           try {
             oscillator.stop();
             oscillator.disconnect();
             gainNode.disconnect();
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (e) {
-            // Ignore errors during cleanup
+            // Ignore
           }
         });
       }
 
       await sleep(duration * 1000);
 
-      // Clear flash and dot/dash type after tone ends
       setIsFlashing(false);
       setCurrentDotDashType(null);
     },
@@ -783,61 +1040,33 @@ export default function Converter() {
 
       // Calculate timing based on whether Farnsworth timing is enabled
       const timing = calculateTiming(wpm, useFarnsworthTiming);
-      const { dotDuration, dashDuration, letterGap, wordGap, elementGap } =
-        timing;
 
       // Track unique text characters played in this playback session
       charactersPlayedThisRunRef.current = 0;
       const uniqueCharsPlayed = new Set<number>();
 
-      do {
-        for (let i = 0; i < morseCode.length && isPlayingRef.current; i++) {
-          if (abortSignal.aborted) break;
-
-          const char = morseCode[i];
-          setHighlightIndex(i);
-
-          const textIdx = morseToTextMapping[i];
-          if (textIdx !== undefined) {
-            setCurrentTextIndex(textIdx);
-            // Track unique characters played
-            if (!uniqueCharsPlayed.has(textIdx)) {
-              uniqueCharsPlayed.add(textIdx);
-              charactersPlayedThisRunRef.current++;
-            }
-          }
-
-          switch (char) {
-            case '.':
-              await playTone('dot', dotDuration, abortSignal);
-              break;
-            case '-':
-              await playTone('dash', dashDuration, abortSignal);
-              break;
-            case ' ':
-              await sleep(letterGap * 1000);
-              break;
-            case '/':
-              await sleep(wordGap * 1000);
-              break;
-          }
-
-          // Add element gap between dots/dashes
-          const nextChar = morseCode[i + 1];
-          if (
-            (char === '.' || char === '-') &&
-            nextChar &&
-            nextChar !== ' ' &&
-            nextChar !== '/'
-          ) {
-            await sleep(elementGap * 1000);
-          }
+      // Count unique characters for stats
+      for (let i = 0; i < morseCode.length; i++) {
+        const textIdx = morseToTextMapping[i];
+        if (textIdx !== undefined && !uniqueCharsPlayed.has(textIdx)) {
+          uniqueCharsPlayed.add(textIdx);
+          charactersPlayedThisRunRef.current++;
         }
+      }
 
-        if (repeat && isPlayingRef.current && !abortSignal.aborted) {
-          await sleep(TIMING_CONFIG.REPEAT_DELAY);
+      // Use scheduled playback for smooth, precise audio
+      // This schedules all audio events upfront and returns when playback is complete
+      await playAllTonesScheduled(morseCode, timing, abortSignal);
+
+      // Handle repeat - schedule additional plays if needed
+      if (repeat && !abortSignal.aborted && isPlayingRef.current) {
+        // Wait a bit then recursively call to repeat
+        await sleep(TIMING_CONFIG.REPEAT_DELAY);
+        if (!abortSignal.aborted && isPlayingRef.current) {
+          playMorseCode();
+          return; // Early return since the new call will handle cleanup
         }
-      } while (repeat && isPlayingRef.current && !abortSignal.aborted);
+      }
     } catch (error) {
       if (
         typeof error === 'object' &&
@@ -872,7 +1101,7 @@ export default function Converter() {
     repeat,
     useFarnsworthTiming,
     morseToTextMapping,
-    playTone,
+    playAllTonesScheduled,
     initAudioContext,
   ]);
 
