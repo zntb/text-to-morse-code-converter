@@ -35,6 +35,8 @@ interface ControlPanelProps {
   exportAsWav: () => void;
   currentDotDashType: 'dot' | 'dash' | null;
   isBottomSheet?: boolean;
+  useFarnsworthTiming?: boolean;
+  setUseFarnsworthTiming?: (val: boolean) => void;
 }
 
 export default function ControlPanel({
@@ -57,6 +59,8 @@ export default function ControlPanel({
   exportAsWav,
   currentDotDashType,
   isBottomSheet = false,
+  useFarnsworthTiming = false,
+  setUseFarnsworthTiming,
 }: ControlPanelProps) {
   const hasContent = morseCode.trim();
   const touchStartX = useRef<number | null>(null);
@@ -393,6 +397,44 @@ export default function ControlPanel({
           Repeat playback
         </Label>
       </div>
+
+      {/* Farnsworth Timing Toggle */}
+      {setUseFarnsworthTiming && (
+        <div
+          className={
+            isBottomSheet
+              ? 'flex items-center gap-4 rounded-lg bg-muted/50 p-4'
+              : 'flex items-center gap-3 rounded-lg bg-muted/50 p-3'
+          }
+        >
+          <button
+            type='button'
+            id='farnsworth-toggle'
+            onClick={() => setUseFarnsworthTiming(!useFarnsworthTiming)}
+            className={`relative h-8 w-14 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+              useFarnsworthTiming ? 'bg-primary' : 'bg-muted-foreground/30'
+            }`}
+            role='switch'
+            aria-checked={useFarnsworthTiming}
+          >
+            <span
+              className={`block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ${
+                useFarnsworthTiming ? 'translate-x-6' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+          <Label
+            htmlFor='farnsworth-toggle'
+            className={
+              isBottomSheet
+                ? 'cursor-pointer text-base text-muted-foreground'
+                : 'cursor-pointer text-sm text-muted-foreground'
+            }
+          >
+            Farnsworth timing
+          </Label>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,11 @@
 {
-  "cSpell.words": ["ÁÄÀÉÈÍÌÓÖÚÜŐŰÑÇ", "ducanh", "shadcn", "turbopack", "Wabun"],
+  "cSpell.words": [
+    "ÁÄÀÉÈÍÌÓÖÚÜŐŰÑÇ",
+    "ducanh",
+    "FARNSWORTH",
+    "shadcn",
+    "turbopack",
+    "Wabun"
+  ],
   "snyk.advanced.autoSelectOrganization": true
 }

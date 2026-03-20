@@ -43,7 +43,12 @@ interface PresetMessage {
 import { debounce } from '@/lib/utils';
 import { useConversionHistory } from '@/lib/useConversionHistory';
 import HistoryDropdown from '@/components/HistoryDropdown';
-import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
+import {
+  AUDIO_CONFIG,
+  TIMING_CONFIG,
+  getGain,
+  calculateTiming,
+} from '@/lib/constants';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -94,6 +99,9 @@ export default function Converter() {
     totalCharactersPlayed: 0,
     totalTimeSpent: 0, // in seconds
   });
+
+  // Farnsworth timing state
+  const [useFarnsworthTiming, setUseFarnsworthTiming] = useState(false);
 
   // History state for recent conversions
   const { history, addToHistory, removeFromHistory, clearHistory } =
@@ -660,7 +668,7 @@ export default function Converter() {
   const playTone = useCallback(
     async (
       type: 'dot' | 'dash',
-      wpm: number,
+      duration: number,
       abortSignal?: AbortSignal,
     ): Promise<void> => {
       // Set current dot/dash type for LED indicator and highlighting
@@ -697,10 +705,6 @@ export default function Converter() {
 
       // Add fade in/out to prevent audio clicks
       const currentTime = context.currentTime;
-      const duration =
-        type === 'dot'
-          ? TIMING_CONFIG.DOT_MULTIPLIER / wpm
-          : TIMING_CONFIG.DASH_MULTIPLIER / wpm;
 
       gainNode.gain.setValueAtTime(0, currentTime);
       const gainValue = getGain(volume[0] / 100);
@@ -773,10 +777,11 @@ export default function Converter() {
       await context.resume();
 
       const wpm = speed[0];
-      const dotDuration = TIMING_CONFIG.DOT_MULTIPLIER / wpm;
-      const letterGap = dotDuration * TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
-      const wordGap = dotDuration * TIMING_CONFIG.WORD_GAP_MULTIPLIER;
-      const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
+
+      // Calculate timing based on whether Farnsworth timing is enabled
+      const timing = calculateTiming(wpm, useFarnsworthTiming);
+      const { dotDuration, dashDuration, letterGap, wordGap, elementGap } =
+        timing;
 
       // Track unique text characters played in this playback session
       charactersPlayedThisRunRef.current = 0;
@@ -801,10 +806,10 @@ export default function Converter() {
 
           switch (char) {
             case '.':
-              await playTone('dot', wpm, abortSignal);
+              await playTone('dot', dotDuration, abortSignal);
               break;
             case '-':
-              await playTone('dash', wpm, abortSignal);
+              await playTone('dash', dashDuration, abortSignal);
               break;
             case ' ':
               await sleep(letterGap * 1000);
@@ -862,6 +867,7 @@ export default function Converter() {
     morseCode,
     speed,
     repeat,
+    useFarnsworthTiming,
     morseToTextMapping,
     playTone,
     initAudioContext,
@@ -916,22 +922,33 @@ export default function Converter() {
       const sampleRate = 44100;
       const wpm = speed[0];
       const freq = frequency[0];
-      const dotDuration = TIMING_CONFIG.DOT_MULTIPLIER / wpm;
-      const letterGap = dotDuration * TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
-      const wordGap = dotDuration * TIMING_CONFIG.WORD_GAP_MULTIPLIER;
-      const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
+
+      // Calculate timing based on whether Farnsworth timing is enabled
+      const timing = calculateTiming(wpm, useFarnsworthTiming);
+      const { dotDuration, dashDuration, letterGap, wordGap, elementGap } =
+        timing;
       const fadeTime = AUDIO_CONFIG.FADE_TIME;
 
       // Calculate total duration
       let totalDuration = 0;
       for (let i = 0; i < morseCode.length; i++) {
         const char = morseCode[i];
+        const nextChar = morseCode[i + 1];
+
         switch (char) {
           case '.':
-            totalDuration += dotDuration + elementGap;
+            totalDuration += dotDuration;
+            // Add element gap only if next char is a dot or dash
+            if (nextChar && (nextChar === '.' || nextChar === '-')) {
+              totalDuration += elementGap;
+            }
             break;
           case '-':
-            totalDuration += TIMING_CONFIG.DASH_MULTIPLIER / wpm + elementGap;
+            totalDuration += dashDuration;
+            // Add element gap only if next char is a dot or dash
+            if (nextChar && (nextChar === '.' || nextChar === '-')) {
+              totalDuration += elementGap;
+            }
             break;
           case ' ':
             totalDuration += letterGap;
@@ -952,14 +969,24 @@ export default function Converter() {
       let currentTime = 0;
       for (let i = 0; i < morseCode.length; i++) {
         const char = morseCode[i];
+        const nextChar = morseCode[i + 1];
         let duration = 0;
+        let gapDuration = 0;
 
         switch (char) {
           case '.':
             duration = dotDuration;
+            // Add element gap only if next char is a dot or dash
+            if (nextChar && (nextChar === '.' || nextChar === '-')) {
+              gapDuration = elementGap;
+            }
             break;
           case '-':
-            duration = TIMING_CONFIG.DASH_MULTIPLIER / wpm;
+            duration = dashDuration;
+            // Add element gap only if next char is a dot or dash
+            if (nextChar && (nextChar === '.' || nextChar === '-')) {
+              gapDuration = elementGap;
+            }
             break;
           case ' ':
             duration = letterGap;
@@ -998,7 +1025,7 @@ export default function Converter() {
           oscillator.stop(currentTime + duration);
         }
 
-        currentTime += duration;
+        currentTime += duration + gapDuration;
       }
 
       // Render audio
@@ -1024,7 +1051,7 @@ export default function Converter() {
     } catch (error) {
       console.error('WAV export failed:', error);
     }
-  }, [morseCode, speed, frequency, volume]);
+  }, [morseCode, speed, frequency, volume, useFarnsworthTiming]);
 
   // Helper function to convert AudioBuffer to WAV format
   const audioBufferToWav = (buffer: AudioBuffer): Blob => {
@@ -1367,6 +1394,8 @@ export default function Converter() {
                       exportAsWav={exportAsWav}
                       currentDotDashType={currentDotDashType}
                       isBottomSheet={false}
+                      useFarnsworthTiming={useFarnsworthTiming}
+                      setUseFarnsworthTiming={setUseFarnsworthTiming}
                     />
                   </CardContent>
                 </Card>
@@ -1412,6 +1441,8 @@ export default function Converter() {
                   exportAsWav={exportAsWav}
                   currentDotDashType={currentDotDashType}
                   isBottomSheet={true}
+                  useFarnsworthTiming={useFarnsworthTiming}
+                  setUseFarnsworthTiming={setUseFarnsworthTiming}
                 />
               </div>
             </SheetContent>
