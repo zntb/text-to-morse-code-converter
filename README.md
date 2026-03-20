@@ -11,8 +11,9 @@ A modern, feature-rich web application for converting text to Morse code with re
 
 ### 🎯 Core Functionality
 
-- **Text to Morse Conversion**: Instantly convert any text to standard International Morse Code
-- **Audio Playback**: High-quality sine wave audio generation with Web Audio API
+- **Bidirectional Conversion**: Convert text to Morse code AND Morse code to text
+- **Audio Playback**: High-quality audio generation with Web Audio API
+- **Real-time Audio Recognition**: Convert Morse code from microphone input to text
 - **Multi-Language Support**: Supports Latin, Greek, Cyrillic, Japanese (Katakana/Wabun), and Arabic scripts
 - **Real-time Visualization**: Live audio waveform display during playback
 
@@ -20,18 +21,49 @@ A modern, feature-rich web application for converting text to Morse code with re
 
 - **Adjustable Speed**: Control playback speed from 5 to 40 WPM (Words Per Minute)
 - **Frequency Control**: Adjust tone frequency from 300 Hz to 1000 Hz
+- **Volume Control**: Adjustable audio volume (0-100%)
+- **Waveform Selection**: Choose between sine, square, sawtooth, and triangle wave tones
 - **Repeat Mode**: Continuous playback option for practice sessions
+- **Farnsworth Timing**: Alternative timing method where inter-character gaps are longer at lower speeds (professional Morse code teaching method)
 - **Theme Toggle**: Beautiful dark and light mode support
 
 ### 🔥 Advanced Features
 
 - **Visual Highlighting**: Real-time character highlighting during playback
+  - **Blue highlighting**: Current character being played in the text
+  - **Red highlighting**: Current Morse symbol during playback
+- **LED Indicator**: Visual indicator that lights up blue for dots and orange for dashes during playback
+- **Screen Flash Effect**: Visual flash synchronized with audio playback
 - **Auto-scrolling**: Automatic scrolling to keep current character in view
-- **File Operations**: Upload `.txt` files and export conversion results
+- **Playback Progress**: Progress bar showing current position in the playback
+- **File Operations**:
+  - Upload `.txt` files for conversion
+  - Export conversion results as text files
+  - Export as WAV audio file
+- **Copy to Clipboard**: One-click copy button for Morse output
 - **Keyboard Shortcuts**:
   - `Escape` - Reset all settings
   - `Ctrl + Space` - Play/Pause
 - **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+- **Swipe Gestures**: Swipe right to play, swipe left to stop (mobile)
+
+### 📚 Learning & Practice
+
+- **Practice Quiz Mode**: Quiz system to test users on Morse code characters with progressive difficulty
+- **Character Reference Table**: Expandable Morse code cheat sheet with searchable alphabet/number table
+- **Audio Playback on Hover/Tap**: Hear each character's Morse code in the reference table
+- **Preset Messages**: Quick-access buttons for common Morse messages:
+  - SOS (... --- ...)
+  - MAYDAY
+  - CQ (general call)
+  - 73 (best regards)
+  - Custom saved presets
+
+### 💾 History & Persistence
+
+- **Conversion History**: Store recent conversions in localStorage
+- **Restore Previous Inputs**: Quick access dropdown for recent messages
+- **PWA Support**: Progressive Web App with offline functionality
 
 ### 📊 Performance
 
@@ -39,6 +71,7 @@ A modern, feature-rich web application for converting text to Morse code with re
 - Debounced input handling
 - 30 FPS waveform visualization
 - Smooth animations and transitions
+- AbortController for clean playback cancellation
 
 ## 🚀 Getting Started
 
