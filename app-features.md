@@ -79,7 +79,7 @@
 - Searchable alphabet/number table
 - Audio playback on hover/tap for each character
 
-### 14. **Farnsworth Timing Support**
+### 14. **Farnsworth Timing Support**✅
 
 - Implement alternative timing method where inter-character gaps are longer at lower speeds
 - This is how professional morse code is typically taught

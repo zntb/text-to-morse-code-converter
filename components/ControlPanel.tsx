@@ -15,6 +15,8 @@ import {
 import ResetDialog from './reset-dialog';
 import React, { useRef, useCallback } from 'react';
 
+type WaveformType = 'sine' | 'square' | 'sawtooth' | 'triangle';
+
 interface ControlPanelProps {
   speed: number[];
   setSpeed: (val: number[]) => void;
@@ -22,6 +24,8 @@ interface ControlPanelProps {
   setFrequency: (val: number[]) => void;
   volume: number[];
   setVolume: (val: number[]) => void;
+  waveform: WaveformType;
+  setWaveform: (val: WaveformType) => void;
   repeat: boolean;
   setRepeat: (flag: boolean) => void;
   playMorseCode: () => void;
@@ -46,6 +50,8 @@ export default function ControlPanel({
   setFrequency,
   volume,
   setVolume,
+  waveform,
+  setWaveform,
   repeat,
   setRepeat,
   playMorseCode,
@@ -214,6 +220,38 @@ export default function ControlPanel({
           <div className='flex justify-between text-sm text-muted-foreground'>
             <span>0%</span>
             <span>100%</span>
+          </div>
+        </div>
+
+        {/* Waveform Selection */}
+        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
+          <div className='flex items-center justify-between'>
+            <Label
+              htmlFor='waveform-select'
+              className={
+                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
+              }
+            >
+              Waveform
+            </Label>
+            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary capitalize'>
+              {waveform}
+            </span>
+          </div>
+          <div className='flex gap-2'>
+            {(['sine', 'square', 'sawtooth', 'triangle'] as const).map(type => (
+              <Button
+                key={type}
+                variant={waveform === type ? 'default' : 'outline'}
+                size={isBottomSheet ? 'lg' : 'sm'}
+                onClick={() => setWaveform(type)}
+                className={`flex-1 capitalize text-xs sm:text-xs ${
+                  isBottomSheet ? 'h-10' : 'h-8'
+                }`}
+              >
+                {type}
+              </Button>
+            ))}
           </div>
         </div>
       </div>

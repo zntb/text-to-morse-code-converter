@@ -66,6 +66,9 @@ export default function Converter() {
   const [isFlashing, setIsFlashing] = useState(false);
   const [frequency, setFrequency] = useState([600]);
   const [volume, setVolume] = useState([20]);
+  const [waveform, setWaveform] = useState<
+    'sine' | 'square' | 'sawtooth' | 'triangle'
+  >('sine');
   const [showControls, setShowControls] = useState(true);
   const [showSettingsSheet, setShowSettingsSheet] = useState(false);
   const [showReferenceSheet, setShowReferenceSheet] = useState(false);
@@ -691,7 +694,7 @@ export default function Converter() {
       const oscillator = context.createOscillator();
       const gainNode = context.createGain();
 
-      oscillator.type = 'sine';
+      oscillator.type = waveform;
       oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
 
       // Connect audio nodes
@@ -741,7 +744,7 @@ export default function Converter() {
       setIsFlashing(false);
       setCurrentDotDashType(null);
     },
-    [frequency, volume, initAudioContext],
+    [frequency, volume, waveform, initAudioContext],
   );
 
   const playMorseCode = useCallback(async () => {
@@ -1373,6 +1376,8 @@ export default function Converter() {
                       setFrequency={setFrequency}
                       volume={volume}
                       setVolume={setVolume}
+                      waveform={waveform}
+                      setWaveform={setWaveform}
                       repeat={repeat}
                       setRepeat={setRepeat}
                       playMorseCode={playMorseCode}
@@ -1419,6 +1424,8 @@ export default function Converter() {
                   setFrequency={setFrequency}
                   volume={volume}
                   setVolume={setVolume}
+                  waveform={waveform}
+                  setWaveform={setWaveform}
                   repeat={repeat}
                   setRepeat={setRepeat}
                   playMorseCode={playMorseCode}
