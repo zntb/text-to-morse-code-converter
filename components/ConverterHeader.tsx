@@ -1,15 +1,18 @@
 'use client';
 
-import { Radio } from 'lucide-react';
+import { Radio, Play, Square } from 'lucide-react';
 import { ConversionModeToggle } from './conversion-mode-toggle';
 import { ModeToggle } from './mode-toggle';
 import { ConversionMode } from './conversion-mode-toggle';
+import { Button } from './ui/button';
 
 interface ConverterHeaderProps {
   conversionMode: ConversionMode;
   setConversionMode: (mode: ConversionMode) => void;
   isListening: boolean;
   isPlaying: boolean;
+  playMorseCode: () => void;
+  stopPlayback: () => void;
 }
 
 export default function ConverterHeader({
@@ -17,6 +20,8 @@ export default function ConverterHeader({
   setConversionMode,
   isListening,
   isPlaying,
+  playMorseCode,
+  stopPlayback,
 }: ConverterHeaderProps) {
   return (
     <header className='sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md'>
@@ -43,6 +48,19 @@ export default function ConverterHeader({
           </div>
         </div>
         <div className='flex items-center gap-2'>
+          <Button
+            variant='outline'
+            size='icon'
+            onClick={isPlaying ? stopPlayback : playMorseCode}
+            className='h-9 w-9'
+            title={isPlaying ? 'Stop' : 'Play'}
+          >
+            {isPlaying ? (
+              <Square className='h-4 w-4' />
+            ) : (
+              <Play className='h-4 w-4' />
+            )}
+          </Button>
           <ConversionModeToggle
             mode={conversionMode}
             setMode={setConversionMode}

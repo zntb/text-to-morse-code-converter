@@ -1412,6 +1412,10 @@ export default function Converter() {
         setConversionMode={setConversionMode}
         isListening={isListening}
         isPlaying={isPlaying}
+        playMorseCode={playMorseCode}
+        stopPlayback={() => {
+          playbackAbortControllerRef.current?.abort();
+        }}
       />
 
       {/* Main Content */}
