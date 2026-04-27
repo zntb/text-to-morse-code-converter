@@ -71,28 +71,40 @@ export default function MorseToTextConverter({
                   <label className='text-sm font-medium mb-2 block'>
                     Select Microphone
                   </label>
-                  <select
-                    value={selectedDeviceId}
-                    onChange={e => setSelectedDeviceId(e.target.value)}
-                    onClick={() => {
-                      if (audioDevices.length === 0) {
-                        enumerateAudioDevices();
-                      }
-                    }}
-                    className='w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
-                    disabled={isListening}
-                  >
-                    {audioDevices.length === 0 ? (
-                      <option value=''>Click to load devices...</option>
-                    ) : (
-                      audioDevices.map(device => (
-                        <option key={device.deviceId} value={device.deviceId}>
-                          {device.label ||
-                            `Microphone ${device.deviceId.slice(0, 8)}`}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                  <div className='flex gap-2'>
+                    <select
+                      value={selectedDeviceId}
+                      onChange={e => {
+                        console.log(
+                          'Device selection changed:',
+                          e.target.value,
+                        );
+                        setSelectedDeviceId(e.target.value);
+                      }}
+                      className='w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+                      disabled={isListening}
+                    >
+                      {audioDevices.length === 0 ? (
+                        <option value=''>Loading devices...</option>
+                      ) : (
+                        audioDevices.map(device => (
+                          <option key={device.deviceId} value={device.deviceId}>
+                            {device.label ||
+                              `Microphone ${device.deviceId.slice(0, 8)}`}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => enumerateAudioDevices()}
+                      disabled={isListening}
+                      title='Refresh microphone list'
+                    >
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
 
                 <Button
@@ -156,12 +168,12 @@ export default function MorseToTextConverter({
                         <span>Volume Level</span>
                         <span
                           className={`font-medium ${
-                            audioLevel > 10
+                            audioLevel > 2
                               ? 'text-green-500'
                               : 'text-yellow-500'
                           }`}
                         >
-                          {audioLevel > 10
+                          {audioLevel > 2
                             ? 'Microphone Active'
                             : 'No Input Detected'}
                         </span>
@@ -169,7 +181,7 @@ export default function MorseToTextConverter({
                       <div className='h-3 w-full overflow-hidden rounded-full bg-secondary'>
                         <div
                           className={`h-full transition-all duration-75 ${
-                            audioLevel > 10 ? 'bg-green-500' : 'bg-yellow-500'
+                            audioLevel > 2 ? 'bg-green-500' : 'bg-yellow-500'
                           }`}
                           style={{ width: `${audioLevel}%` }}
                         />

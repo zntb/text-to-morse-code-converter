@@ -85,7 +85,13 @@ export default function Converter() {
 
   // Microphone device selection
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>(() => {
+    // Load saved device preference from localStorage
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('morse-selected-device') || '';
+    }
+    return '';
+  });
 
   // Test Microphone state
   const [isTestingMic, setIsTestingMic] = useState(false);
@@ -300,48 +306,137 @@ export default function Converter() {
 
   // --- Enumerate Audio Devices ---
   const enumerateAudioDevices = useCallback(async () => {
+    let stream: MediaStream | null = null;
     try {
-      // Request permission first
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request permission first - keep stream open to get device labels
+      console.log('Requesting microphone permission...');
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Microphone permission granted');
+
       const devices = await navigator.mediaDevices.enumerateDevices();
+      console.log('Available devices:', devices);
+
       const audioInputs = devices.filter(
         device => device.kind === 'audioinput',
       );
+      console.log('Audio input devices:', audioInputs);
+
       setAudioDevices(audioInputs);
 
-      if (audioInputs.length > 0 && !selectedDeviceId) {
-        setSelectedDeviceId(audioInputs[0].deviceId);
+      // Only set default device if we haven't set one yet and no saved preference
+      // Use functional update to avoid dependency on selectedDeviceId
+      if (audioInputs.length > 0) {
+        setSelectedDeviceId(prevId => {
+          // If we have a saved preference, use it if the device is still available
+          if (prevId && audioInputs.some(d => d.deviceId === prevId)) {
+            console.log('Using saved device:', prevId);
+            return prevId;
+          }
+          // Otherwise, use the first available device
+          const newId = prevId || audioInputs[0].deviceId;
+          console.log('Selected device:', newId);
+          return newId;
+        });
+      } else {
+        console.warn('No audio input devices found');
       }
     } catch (error) {
       console.error('Failed to enumerate audio devices:', error);
+      // Clear devices if permission is denied
+      setAudioDevices([]);
+      setSelectedDeviceId('');
+    } finally {
+      // Close the stream to release the microphone
+      // Note: We close after enumeration to get device labels,
+      // but this means labels will be empty on subsequent calls
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Enumeration stream closed');
+      }
     }
-  }, [selectedDeviceId]);
+  }, []);
+
+  // Enumerate audio devices on mount and when devices change
+  useEffect(() => {
+    enumerateAudioDevices();
+
+    // Listen for device changes (e.g., microphone connected/disconnected)
+    navigator.mediaDevices.addEventListener(
+      'devicechange',
+      enumerateAudioDevices,
+    );
+
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        'devicechange',
+        enumerateAudioDevices,
+      );
+    };
+  }, [enumerateAudioDevices]);
 
   // --- Real-time Audio Recognition for Morse Decoding ---
   const startAudioRecognition = useCallback(async () => {
     try {
       // Get audio stream from selected device using ref
       const deviceId = selectedDeviceIdRef.current;
-      const constraints: MediaStreamConstraints = {
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+
+      // Professional microphone constraints for accurate Morse code detection
+      const audioConstraints: MediaStreamConstraints = {
+        audio: deviceId
+          ? {
+              deviceId,
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              sampleRate: 44100,
+              channelCount: 1,
+            }
+          : {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              sampleRate: 44100,
+              channelCount: 1,
+            },
       };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(
+        audioConstraints,
+      );
       mediaStreamRef.current = stream;
 
-      // Create audio context for analysis
+      // Create audio context for analysis with professional settings
       const audioContext = new (window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext)();
       audioInputRef.current = audioContext;
 
-      // Create analyser node
+      // Resume the audio context (required in modern browsers)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      // Verify audio context is running
+      if (audioContext.state !== 'running') {
+        throw new Error(
+          `AudioContext is not running. State: ${audioContext.state}`,
+        );
+      }
+
+      // Create analyser node with professional settings
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
       analyserDecodeRef.current = analyser;
 
       // Connect microphone to analyser
       const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
+      // Add a gain node for better control
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = 1.0; // No gain adjustment
+      source.connect(gainNode);
+      gainNode.connect(analyser);
 
       // Initialize buffers
       audioBufferRef.current = [];
@@ -351,13 +446,15 @@ export default function Converter() {
       const detectMorse = () => {
         if (!analyserDecodeRef.current || !isListeningRef.current) return;
 
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
+        const dataArray = new Uint8Array(
+          analyserDecodeRef.current.frequencyBinCount,
+        );
+        analyserDecodeRef.current.getByteFrequencyData(dataArray);
 
         // Check if there's a significant audio signal (tone detection)
         // Morse tones are typically around 600Hz, so check that frequency range
         const sampleRate = audioContext.sampleRate;
-        const binSize = sampleRate / analyser.fftSize;
+        const binSize = sampleRate / analyserDecodeRef.current.fftSize;
         const targetBin = Math.round(600 / binSize);
         const binRange = 5; // Check a range around 600Hz
 
@@ -425,22 +522,51 @@ export default function Converter() {
           }
         }
 
-        if (isListening) {
+        if (isListeningRef.current) {
           recognitionRef.current = requestAnimationFrame(detectMorse);
         }
       };
 
       setIsListening(true);
+      isListeningRef.current = true;
       detectMorse();
     } catch (error) {
       console.error('Failed to start audio recognition:', error);
+      let errorMessage = 'Failed to start audio recognition.';
+
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage =
+            'Microphone access denied. Please allow microphone access in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage =
+            'No microphone found. Please connect a microphone and try again.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Microphone is already in use by another application.';
+        } else if (error.name === 'OverconstrainedError') {
+          errorMessage = 'No microphone matches the specified constraints.';
+        } else if (error.name === 'TypeError') {
+          errorMessage = 'Microphone access is not available in this context.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      console.error(errorMessage);
       setIsListening(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync selectedDeviceId and isListening with refs
   useEffect(() => {
     selectedDeviceIdRef.current = selectedDeviceId;
+  }, [selectedDeviceId]);
+
+  // Save selected device to localStorage when it changes
+  useEffect(() => {
+    if (selectedDeviceId) {
+      localStorage.setItem('morse-selected-device', selectedDeviceId);
+    }
   }, [selectedDeviceId]);
 
   useEffect(() => {
@@ -458,45 +584,82 @@ export default function Converter() {
       setAudioLevel(0);
 
       const deviceId = selectedDeviceIdRef.current;
-      const constraints: MediaStreamConstraints = {
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-      };
+      console.log('Starting test microphone with deviceId:', deviceId);
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Get microphone stream - use selected device
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+      });
       testMicStreamRef.current = stream;
 
-      // Create audio context for analysis
+      // Verify stream tracks are active
+      const tracks = stream.getTracks();
+      console.log('Stream tracks:', tracks.length);
+      for (const track of tracks) {
+        console.log('Track:', {
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        });
+      }
+
+      // Create audio context
       const audioContext = new (window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext)();
       testMicAudioContextRef.current = audioContext;
 
-      // Create analyser node
+      // Resume audio context
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log('AudioContext state:', audioContext.state);
+
+      // Create analyser
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.5;
       testMicAnalyserRef.current = analyser;
 
-      // Connect microphone to analyser
+      // Connect stream to analyser
       const source = audioContext.createMediaStreamSource(stream);
       source.connect(analyser);
 
+      // Wait a bit for stream to initialize before reading
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      let frameCount = 0;
       const updateAudioLevel = () => {
         if (!testMicAnalyserRef.current || !isTestingMicRef.current) return;
 
-        const dataArray = new Uint8Array(
-          testMicAnalyserRef.current.frequencyBinCount,
-        );
-        testMicAnalyserRef.current.getByteFrequencyData(dataArray);
+        frameCount++;
 
-        // Calculate average volume level
-        let sum = 0;
+        const dataArray = new Uint8Array(testMicAnalyserRef.current.fftSize);
+        testMicAnalyserRef.current.getByteTimeDomainData(dataArray);
+
+        // Check if we're getting actual data (not all 128)
+        let sumSquares = 0;
+        let nonSilentSamples = 0;
         for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
+          const v = (dataArray[i] - 128) / 128;
+          sumSquares += v * v;
+          if (dataArray[i] !== 128) nonSilentSamples++;
         }
-        const average = sum / dataArray.length;
-        // Convert to 0-100 scale (255 is max byte value)
-        const level = Math.min(100, Math.round((average / 255) * 100 * 3));
+        const rms = Math.sqrt(sumSquares / dataArray.length);
+
+        if (frameCount <= 10) {
+          console.log(
+            `Frame ${frameCount}: RMS=${rms.toFixed(
+              4,
+            )}, nonSilent=${nonSilentSamples}/${dataArray.length}`,
+          );
+        }
+
+        // Convert RMS to 0-100 with low sensitivity
+        // RMS values around 0.005-0.02 for normal speech
+        const level = Math.min(100, Math.round(rms * 400));
         setAudioLevel(level);
 
         if (isTestingMicRef.current) {
@@ -505,19 +668,38 @@ export default function Converter() {
       };
 
       setIsTestingMic(true);
+      isTestingMicRef.current = true;
       updateAudioLevel();
     } catch (error) {
       console.error('Failed to start test microphone:', error);
-      setTestMicError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to access microphone. Please check permissions.',
-      );
+      let errorMessage =
+        'Failed to access microphone. Please check permissions.';
+
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage =
+            'Microphone access denied. Please allow microphone access in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage =
+            'No microphone found. Please connect a microphone and try again.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Microphone is already in use by another application.';
+        } else if (error.name === 'OverconstrainedError') {
+          errorMessage = 'No microphone matches the specified constraints.';
+        } else if (error.name === 'TypeError') {
+          errorMessage = 'Microphone access is not available in this context.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      setTestMicError(errorMessage);
       setIsTestingMic(false);
     }
   }, []);
 
   const stopTestMicrophone = useCallback(() => {
+    isTestingMicRef.current = false;
     setIsTestingMic(false);
     setAudioLevel(0);
 
@@ -550,6 +732,7 @@ export default function Converter() {
   }, [stopTestMicrophone]);
 
   const stopAudioRecognition = useCallback(() => {
+    isListeningRef.current = false;
     setIsListening(false);
 
     if (recognitionRef.current) {
