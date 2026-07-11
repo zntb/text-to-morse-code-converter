@@ -16,13 +16,32 @@ const config: Config = {
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
+    '<rootDir>/e2e/',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
     'lib/**/*.ts',
-    'lib/**/*.tsx',
     '!lib/**/*.d.ts',
+    'components/**/*.tsx',
+    '!components/ui/**',
+    'morse-code-data.ts',
   ],
+  coverageThreshold: {
+    global: {
+      branches: 10,
+      functions: 15,
+      lines: 8,
+      statements: 8,
+    },
+    'lib/**/*.ts': {
+      branches: 85,
+      functions: 95,
+      lines: 90,
+      statements: 90,
+    },
+  },
+  coverageReporters: ['html', 'text', 'lcov'],
+  coverageDirectory: '<rootDir>/coverage',
 };
 
 export default config;
