@@ -28,10 +28,10 @@ const config: Config = {
   ],
   coverageThreshold: {
     global: {
-      branches: 10,
-      functions: 15,
-      lines: 8,
-      statements: 8,
+      branches: 30,
+      functions: 40,
+      lines: 25,
+      statements: 25,
     },
     'lib/**/*.ts': {
       branches: 85,
