@@ -20,7 +20,8 @@ import {
 } from '@/components/ui/sheet';
 
 import { Volume2, Settings2, Smartphone } from 'lucide-react';
-import { MORSE_CODE_MAP, TEXT_TO_MORSE_MAP } from '@/morse-code-data';
+import { MORSE_CODE_MAP } from '@/morse-code-data';
+import { convertToMorse, convertToText } from '@/lib/morse-conversion';
 
 import { AudioInputMode } from './conversion-mode-toggle';
 import PresetButtons from './PresetButtons';
@@ -275,33 +276,15 @@ export default function Converter() {
     };
   }, []);
 
-  // --- Morse Code Conversion (Memoized for performance) ---
-  const convertToMorse = useCallback((text: string) => {
-    return text
-      .toUpperCase()
-      .split('')
-      .map(char => MORSE_CODE_MAP[char] || '?')
-      .join(' ');
-  }, []);
+  // --- Morse Code Conversion ---
+  // Uses imported pure functions from lib/morse-conversion.ts
+  const convertToMorseCallback = useCallback(convertToMorse, []);
 
-  // --- Morse to Text Decoding ---
-  const convertToText = useCallback((morse: string) => {
-    // Normalize the morse string
-    const normalized = morse.trim().replace(/\s+/g, ' ');
-    if (!normalized) return '';
-
-    const words = normalized.split(' / ');
-    return words
-      .map(word => {
-        const letters = word.split(' ');
-        return letters.map(code => TEXT_TO_MORSE_MAP[code] || '?').join('');
-      })
-      .join(' ');
-  }, []);
+  const convertToTextCallback = useCallback(convertToText, []);
 
   const decodedText = useMemo(
-    () => convertToText(morseInput),
-    [morseInput, convertToText],
+    () => convertToTextCallback(morseInput),
+    [morseInput, convertToTextCallback],
   );
 
   // --- Enumerate Audio Devices ---
@@ -438,6 +421,33 @@ export default function Converter() {
       source.connect(gainNode);
       gainNode.connect(analyser);
 
+      // Calibrate ambient noise floor
+      const calibrateNoiseFloor = () => {
+        if (!analyserDecodeRef.current) return 0.02; // default fallback
+
+        // Use fftSize (not frequencyBinCount) for getByteTimeDomainData
+        const fftSize = analyserDecodeRef.current.fftSize;
+        const dataArray = new Uint8Array(fftSize);
+        // Take 10 samples and average for noise floor
+        let noiseFloor = 0;
+        for (let s = 0; s < 10; s++) {
+          analyserDecodeRef.current.getByteTimeDomainData(dataArray);
+          let rms = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const v = (dataArray[i] - 128) / 128;
+            rms += v * v;
+          }
+          rms = Math.sqrt(rms / dataArray.length);
+          noiseFloor += rms;
+        }
+        noiseFloor /= 10;
+        // Return a threshold 3x the noise floor, minimum 0.02
+        return Math.max(0.02, noiseFloor * 3);
+      };
+
+      // Calibrate on start
+      const signalThreshold = calibrateNoiseFloor();
+
       // Initialize buffers
       audioBufferRef.current = [];
       currentDotDashRef.current = '';
@@ -446,54 +456,67 @@ export default function Converter() {
       const detectMorse = () => {
         if (!analyserDecodeRef.current || !isListeningRef.current) return;
 
-        const dataArray = new Uint8Array(
+        // --- Use time-domain (RMS) energy detection ---
+        // This works for ANY audio input (voice, tapping, tones) unlike frequency-domain
+        const timeData = new Uint8Array(
+          analyserDecodeRef.current.fftSize,
+        );
+        analyserDecodeRef.current.getByteTimeDomainData(timeData);
+
+        let sumSquares = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const v = (timeData[i] - 128) / 128;
+          sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / timeData.length);
+
+        // Also check frequency data for low-frequency noise filtering
+        // This helps distinguish voice/tapping from constant background hum
+        const freqData = new Uint8Array(
           analyserDecodeRef.current.frequencyBinCount,
         );
-        analyserDecodeRef.current.getByteFrequencyData(dataArray);
+        analyserDecodeRef.current.getByteFrequencyData(freqData);
 
-        // Check if there's a significant audio signal (tone detection)
-        // Morse tones are typically around 600Hz, so check that frequency range
-        const sampleRate = audioContext.sampleRate;
-        const binSize = sampleRate / analyserDecodeRef.current.fftSize;
-        const targetBin = Math.round(600 / binSize);
-        const binRange = 5; // Check a range around 600Hz
-
-        let sum = 0;
-        for (let i = targetBin - binRange; i <= targetBin + binRange; i++) {
-          if (i >= 0 && i < dataArray.length) {
-            sum += dataArray[i];
-          }
+        // Sum energy across all frequencies (broadband detection)
+        let freqSum = 0;
+        for (let i = 0; i < freqData.length; i++) {
+          freqSum += freqData[i];
         }
-        const avg = sum / (binRange * 2);
-        const threshold = 50; // Adjust based on testing
+        const freqAvg = freqSum / freqData.length;
+
+        // Combined detection: use RMS primarily, with frequency confirmation
+        // A signal is present when RMS exceeds threshold AND there's frequency energy
+        const hasSignal = rms > signalThreshold && freqAvg > 15;
 
         const now = Date.now();
         const timeSinceLastSignal = now - lastSignalTimeRef.current;
 
-        // Timing thresholds (in ms)
-        const dotThreshold = 50; // Minimum for a dot
-        const dashThreshold = 150; // Minimum for a dash
-        const elementGapThreshold = 100; // Gap between dots/dashes
-        const letterGapThreshold = 250; // Gap between letters
-        const wordGapThreshold = 500; // Gap between words
+        // Timing thresholds (in ms) - derived from standard Morse timing
+        // At 20 WPM: dot=60ms, dash=180ms, element gap=60ms, letter gap=180ms, word gap=420ms
+        // We use slightly relaxed thresholds for better user experience
+        const dotMinThreshold = 30; // Minimum duration to qualify as intentional signal
+        const dashThreshold = 150; // Duration above which is a dash (vs dot)
+        const elementGapThreshold = 120; // Gap between dots/dashes within a letter
+        const letterGapThreshold = 280; // Gap between letters
+        const wordGapThreshold = 600; // Gap between words
 
-        if (avg > threshold) {
-          // Signal detected - recording duration
+        if (hasSignal) {
+          // Signal detected - record start time
           if (audioBufferRef.current.length === 0) {
             audioBufferRef.current.push(now);
           }
         } else {
-          // No signal - check if we need to process a completed element
+          // No signal detected
           if (audioBufferRef.current.length === 1) {
+            // A signal just ended - classify it
             const signalDuration = now - audioBufferRef.current[0];
 
-            if (
-              signalDuration > dotThreshold &&
-              signalDuration < dashThreshold
-            ) {
-              currentDotDashRef.current += '.';
-            } else if (signalDuration >= dashThreshold) {
-              currentDotDashRef.current += '-';
+            if (signalDuration >= dotMinThreshold) {
+              if (signalDuration < dashThreshold) {
+                currentDotDashRef.current += '.';
+              } else {
+                currentDotDashRef.current += '-';
+              }
             }
 
             audioBufferRef.current = [];
@@ -502,20 +525,21 @@ export default function Converter() {
             audioBufferRef.current.length === 0 &&
             currentDotDashRef.current.length > 0
           ) {
-            // Check for gaps
+            // --- Gap detection: classify silence between signals ---
+            // IMPORTANT: Always commit the accumulated characters FIRST,
+            // then add the appropriate separator.
+            // This fixes the bug where the last character of a letter was lost.
+            
             if (timeSinceLastSignal > wordGapThreshold) {
-              // Word gap - add space
-              setMorseInput(prev => prev + ' / ');
+              // Word gap: commit current letter + word separator
+              setMorseInput(prev => prev + currentDotDashRef.current + ' / ');
               currentDotDashRef.current = '';
             } else if (timeSinceLastSignal > letterGapThreshold) {
-              // Letter gap - add space
-              setMorseInput(prev => prev + ' ');
+              // Letter gap: commit current letter + space
+              setMorseInput(prev => prev + currentDotDashRef.current + ' ');
               currentDotDashRef.current = '';
-            } else if (
-              timeSinceLastSignal > elementGapThreshold &&
-              currentDotDashRef.current.length > 0
-            ) {
-              // Element gap within a letter
+            } else if (timeSinceLastSignal > elementGapThreshold) {
+              // Element gap (within a letter): commit current element only
               setMorseInput(prev => prev + currentDotDashRef.current);
               currentDotDashRef.current = '';
             }
@@ -761,8 +785,8 @@ export default function Converter() {
   }, [stopAudioRecognition]);
 
   const morseCode = useMemo(
-    () => convertToMorse(inputText),
-    [inputText, convertToMorse],
+    () => convertToMorseCallback(inputText),
+    [inputText, convertToMorseCallback],
   );
 
   // Save to history when input changes (debounced)

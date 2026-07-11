@@ -49,9 +49,9 @@ export default function CharacterReferenceTable({
   const [isExpanded, setIsExpanded] = useState(startExpanded);
   const [searchQuery, setSearchQuery] = useState('');
   const [playingCharacter, setPlayingCharacter] = useState<string | null>(null);
-  const [activeCategories, setActiveCategories] = useState<string[]>([
-    'letters',
-  ]);
+  const [activeCategories, setActiveCategories] = useState<string[]>(
+    () => CHARACTER_GROUPS.map(g => g.label),
+  );
   const [speed] = useState(15);
   const [frequency] = useState(600);
   const [volume] = useState(20);
