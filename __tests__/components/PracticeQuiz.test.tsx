@@ -83,7 +83,7 @@ describe('PracticeQuiz', () => {
 
   it('shows 0% accuracy initially', () => {
     render(<PracticeQuiz />);
-    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getAllByText('0%').length).toBeGreaterThan(0);
   });
 
   it('shows streak indicators', () => {

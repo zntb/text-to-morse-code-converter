@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Volume2, RotateCcw, Trophy, Target, Zap } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import { TIMING_CONFIG } from '@/lib/constants';
+import { TIMING_CONFIG, AUDIO_SLIDER_CONFIG } from '@/lib/constants';
+import AudioSlider from './AudioSlider';
 import { sleep } from '@/lib/utils';
 import { useAudioContext } from '@/lib/useAudioContext';
 import { playTone as playToneAudio } from '@/lib/playTone';
@@ -418,44 +419,39 @@ export default function PracticeQuiz() {
 
         {/* Audio Settings */}
         <div className='grid grid-cols-3 gap-4 pt-4 border-t'>
-          <div className='space-y-2'>
-            <label className='text-xs text-muted-foreground'>Speed (WPM)</label>
-            <input
-              type='range'
-              min='5'
-              max='30'
-              value={speed}
-              onChange={e => setSpeed(Number(e.target.value))}
-              className='w-full'
-            />
-            <div className='text-xs text-center'>{speed} WPM</div>
-          </div>
-          <div className='space-y-2'>
-            <label className='text-xs text-muted-foreground'>Volume</label>
-            <input
-              type='range'
-              min='0'
-              max='100'
-              value={volume}
-              onChange={e => setVolume(Number(e.target.value))}
-              className='w-full'
-            />
-            <div className='text-xs text-center'>{volume}%</div>
-          </div>
-          <div className='space-y-2'>
-            <label className='text-xs text-muted-foreground'>
-              Frequency (Hz)
-            </label>
-            <input
-              type='range'
-              min='300'
-              max='1000'
-              value={frequency}
-              onChange={e => setFrequency(Number(e.target.value))}
-              className='w-full'
-            />
-            <div className='text-xs text-center'>{frequency} Hz</div>
-          </div>
+          <AudioSlider
+            id='quiz-speed'
+            label='Speed (WPM)'
+            value={[speed]}
+            onValueChange={([v]) => setSpeed(v)}
+            min={AUDIO_SLIDER_CONFIG.speed.min}
+            max={30}
+            step={AUDIO_SLIDER_CONFIG.speed.step}
+            unit={AUDIO_SLIDER_CONFIG.speed.unit}
+            variant='native'
+          />
+          <AudioSlider
+            id='quiz-volume'
+            label='Volume'
+            value={[volume]}
+            onValueChange={([v]) => setVolume(v)}
+            min={AUDIO_SLIDER_CONFIG.volume.min}
+            max={AUDIO_SLIDER_CONFIG.volume.max}
+            step={AUDIO_SLIDER_CONFIG.volume.step}
+            unit={AUDIO_SLIDER_CONFIG.volume.unit}
+            variant='native'
+          />
+          <AudioSlider
+            id='quiz-frequency'
+            label='Frequency (Hz)'
+            value={[frequency]}
+            onValueChange={([v]) => setFrequency(v)}
+            min={AUDIO_SLIDER_CONFIG.frequency.min}
+            max={AUDIO_SLIDER_CONFIG.frequency.max}
+            step={AUDIO_SLIDER_CONFIG.frequency.step}
+            unit={AUDIO_SLIDER_CONFIG.frequency.unit}
+            variant='native'
+          />
         </div>
       </CardContent>
     </Card>

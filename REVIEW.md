@@ -52,13 +52,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 7. Audio Settings Sliders (Speed / Volume / Frequency)
+## 7. ~~Audio Settings Sliders (Speed / Volume / Frequency)~~ ✅ DONE
 
 **Files:** `components/ControlPanel.tsx`, `components/PracticeQuiz.tsx`
 
-Both components implement audio parameter sliders (speed in WPM, volume in %, frequency in Hz). `ControlPanel` uses the Radix `Slider` component, while `PracticeQuiz` uses native `<input type="range">`. The underlying logic (min/max values, labels, value formatting) is duplicated.
-
-**Recommendation:** Create a shared `AudioSettingsPanel` component or at minimum share the configuration (min/max/step/label) as constants and a reusable slider wrapper.
+**Status:** Extracted shared `AUDIO_SLIDER_CONFIG` constants in `lib/constants.ts` and reusable `AudioSlider` component in `components/AudioSlider.tsx` (supports both Radix Slider and native input variants). All 250 tests pass.
 
 ---
 
@@ -124,7 +122,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 4 | ~~`PresetMessage` interface~~ ✅ | ~~2~~ 0 | ~~morse-converter, PresetButtons~~ moved to `lib/types.ts` |
 | 5 | ~~Microphone error handling~~ ✅ | ~~2~~ 0 | ~~morse-converter (2 functions)~~ extracted to `lib/utils.ts` |
 | 6 | ~~Toggle switch pattern~~ ✅ | ~~2~~ 0 | ~~ControlPanel (repeat + Farnsworth)~~ extracted to `components/SwitchToggle.tsx` |
-| 7 | Audio settings sliders | 2 | ControlPanel, PracticeQuiz |
+| 7 | ~~Audio settings sliders~~ ✅ | ~~2~~ 0 | ~~ControlPanel, PracticeQuiz~~ extracted to `components/AudioSlider.tsx` + `lib/constants.ts` |
 | 8 | Inline timing calculation | 2 | PracticeQuiz, CharacterReferenceTable |
 | 9 | `audioBufferToWav` | 1 (move) | morse-converter |
 | 10 | `formatTimestamp` / `truncateText` | 1 (move) | HistoryDropdown |

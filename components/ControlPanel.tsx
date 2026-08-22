@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import AudioSlider from './AudioSlider';
+import { AUDIO_SLIDER_CONFIG } from '@/lib/constants';
 import {
   Play,
   Square,
@@ -134,95 +135,43 @@ export default function ControlPanel({
       <div
         className={isBottomSheet ? 'grid gap-6' : 'grid gap-6 sm:grid-cols-3'}
       >
-        {/* Speed Control */}
-        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
-          <div className='flex items-center justify-between'>
-            <Label
-              htmlFor='speed-slider'
-              className={
-                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
-              }
-            >
-              Speed
-            </Label>
-            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
-              {speed[0]} WPM
-            </span>
-          </div>
-          <Slider
-            id='speed-slider'
-            min={5}
-            max={40}
-            step={1}
-            value={speed}
-            onValueChange={setSpeed}
-            className={isBottomSheet ? 'py-3' : 'py-1'}
-          />
-          <div className='flex justify-between text-sm text-muted-foreground'>
-            <span>Slow</span>
-            <span>Fast</span>
-          </div>
-        </div>
+        <AudioSlider
+          id='speed-slider'
+          label={AUDIO_SLIDER_CONFIG.speed.label}
+          value={speed}
+          onValueChange={setSpeed}
+          min={AUDIO_SLIDER_CONFIG.speed.min}
+          max={AUDIO_SLIDER_CONFIG.speed.max}
+          step={AUDIO_SLIDER_CONFIG.speed.step}
+          unit={AUDIO_SLIDER_CONFIG.speed.unit}
+          minLabel='Slow'
+          maxLabel='Fast'
+          isBottomSheet={isBottomSheet}
+        />
 
-        {/* Frequency Control */}
-        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
-          <div className='flex items-center justify-between'>
-            <Label
-              htmlFor='freq-slider'
-              className={
-                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
-              }
-            >
-              Frequency
-            </Label>
-            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
-              {frequency[0]} Hz
-            </span>
-          </div>
-          <Slider
-            id='freq-slider'
-            min={300}
-            max={1000}
-            step={10}
-            value={frequency}
-            onValueChange={setFrequency}
-            className={isBottomSheet ? 'py-3' : 'py-1'}
-          />
-          <div className='flex justify-between text-sm text-muted-foreground'>
-            <span>300 Hz</span>
-            <span>1000 Hz</span>
-          </div>
-        </div>
+        <AudioSlider
+          id='freq-slider'
+          label={AUDIO_SLIDER_CONFIG.frequency.label}
+          value={frequency}
+          onValueChange={setFrequency}
+          min={AUDIO_SLIDER_CONFIG.frequency.min}
+          max={AUDIO_SLIDER_CONFIG.frequency.max}
+          step={AUDIO_SLIDER_CONFIG.frequency.step}
+          unit={AUDIO_SLIDER_CONFIG.frequency.unit}
+          isBottomSheet={isBottomSheet}
+        />
 
-        {/* Volume Control */}
-        <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>
-          <div className='flex items-center justify-between'>
-            <Label
-              htmlFor='volume-slider'
-              className={
-                isBottomSheet ? 'text-base font-medium' : 'text-sm font-medium'
-              }
-            >
-              Volume
-            </Label>
-            <span className='rounded-md bg-primary/10 px-3 py-1 text-sm font-mono text-primary'>
-              {volume[0]}%
-            </span>
-          </div>
-          <Slider
-            id='volume-slider'
-            min={0}
-            max={100}
-            step={1}
-            value={volume}
-            onValueChange={setVolume}
-            className={isBottomSheet ? 'py-3' : 'py-1'}
-          />
-          <div className='flex justify-between text-sm text-muted-foreground'>
-            <span>0%</span>
-            <span>100%</span>
-          </div>
-        </div>
+        <AudioSlider
+          id='volume-slider'
+          label={AUDIO_SLIDER_CONFIG.volume.label}
+          value={volume}
+          onValueChange={setVolume}
+          min={AUDIO_SLIDER_CONFIG.volume.min}
+          max={AUDIO_SLIDER_CONFIG.volume.max}
+          step={AUDIO_SLIDER_CONFIG.volume.step}
+          unit={AUDIO_SLIDER_CONFIG.volume.unit}
+          isBottomSheet={isBottomSheet}
+        />
 
         {/* Waveform Selection */}
         <div className={isBottomSheet ? 'space-y-4' : 'space-y-3'}>

@@ -5,6 +5,13 @@ export const AUDIO_CONFIG = {
   FADE_TIME: 0.01, // Small fade to prevent audio clicks
 } as const;
 
+/** Shared slider configuration for audio parameter controls. */
+export const AUDIO_SLIDER_CONFIG = {
+  speed: { min: 5, max: 40, step: 1, unit: 'WPM', label: 'Speed' },
+  frequency: { min: 300, max: 1000, step: 10, unit: 'Hz', label: 'Frequency' },
+  volume: { min: 0, max: 100, step: 1, unit: '%', label: 'Volume' },
+} as const;
+
 // Helper to get the gain value (can be overridden with volume parameter)
 export const getGain = (volume?: number) => volume ?? AUDIO_CONFIG_DEFAULT_GAIN;
 
