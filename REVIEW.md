@@ -68,13 +68,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 9. `audioBufferToWav` Helper
+## 9. ~~`audioBufferToWav` Helper~~ ✅ DONE
 
 **File:** `components/morse-converter.tsx` (defined as a closure inside the component)
 
-This is a pure, stateless utility function that converts an `AudioBuffer` to a WAV `Blob`. It has no dependency on React state or props.
-
-**Recommendation:** Move to `lib/audio-utils.ts` (new file) for reusability and testability.
+**Status:** Moved to `lib/audio-utils.ts`. All 250 tests pass. Also fixed a pre-existing eslint error (`audioBufferToWav` accessed before declared).
 
 ---
 
@@ -122,7 +120,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 6 | ~~Toggle switch pattern~~ ✅ | ~~2~~ 0 | ~~ControlPanel (repeat + Farnsworth)~~ extracted to `components/SwitchToggle.tsx` |
 | 7 | ~~Audio settings sliders~~ ✅ | ~~2~~ 0 | ~~ControlPanel, PracticeQuiz~~ extracted to `components/AudioSlider.tsx` + `lib/constants.ts` |
 | 8 | ~~Inline timing calculation~~ ✅ | ~~2~~ 0 | ~~PracticeQuiz, CharacterReferenceTable~~ replaced with `calculateTiming()` |
-| 9 | `audioBufferToWav` | 1 (move) | morse-converter |
+| 9 | ~~`audioBufferToWav`~~ ✅ | ~~1~~ 0 | ~~morse-converter~~ moved to `lib/audio-utils.ts` |
 | 10 | `formatTimestamp` / `truncateText` | 1 (move) | HistoryDropdown |
 | 11 | Mapping data duplication | 1 (refactor) | morse-code-data.ts |
 | 12 | localStorage pattern | 2+ | morse-converter, useConversionHistory |
