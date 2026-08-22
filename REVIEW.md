@@ -36,13 +36,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 5. Microphone Error Handling Logic
+## 5. ~~Microphone Error Handling Logic~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx` (in `startAudioRecognition` and `startTestMicrophone`)
 
-The error handling for `getUserMedia` is duplicated nearly verbatim in both `startAudioRecognition` and `startTestMicrophone`, mapping `NotAllowedError`, `NotFoundError`, `NotReadableError`, `OverconstrainedError`, and `TypeError` to user-friendly messages.
-
-**Recommendation:** Extract a `getMicrophoneErrorMessage(error: unknown): string` utility function.
+**Status:** Extracted to `getMicrophoneErrorMessage()` in `lib/utils.ts`. All 250 tests pass.
 
 ---
 
@@ -126,7 +124,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 2 | ~~`initAudioContext`~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/useAudioContext.ts` |
 | 3 | ~~`playTone` function~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/playTone.ts` |
 | 4 | ~~`PresetMessage` interface~~ ✅ | ~~2~~ 0 | ~~morse-converter, PresetButtons~~ moved to `lib/types.ts` |
-| 5 | Microphone error handling | 2 | morse-converter (2 functions) |
+| 5 | ~~Microphone error handling~~ ✅ | ~~2~~ 0 | ~~morse-converter (2 functions)~~ extracted to `lib/utils.ts` |
 | 6 | Toggle switch pattern | 2 | ControlPanel (repeat + Farnsworth) |
 | 7 | Audio settings sliders | 2 | ControlPanel, PracticeQuiz |
 | 8 | Inline timing calculation | 2 | PracticeQuiz, CharacterReferenceTable |

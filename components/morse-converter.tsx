@@ -35,7 +35,7 @@ import WaveformCanvas from './WaveformCanvas';
 import PracticeQuiz from './PracticeQuiz';
 import PlaybackProgress from './PlaybackProgress';
 import CharacterReferenceTable from './CharacterReferenceTable';
-import { debounce, sleep } from '@/lib/utils';
+import { debounce, sleep, getMicrophoneErrorMessage } from '@/lib/utils';
 import type { PresetMessage } from '@/lib/types';
 import { useConversionHistory } from '@/lib/useConversionHistory';
 import HistoryDropdown from '@/components/HistoryDropdown';
@@ -527,27 +527,7 @@ export default function Converter() {
       detectMorse();
     } catch (error) {
       console.error('Failed to start audio recognition:', error);
-      let errorMessage = 'Failed to start audio recognition.';
-
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          errorMessage =
-            'Microphone access denied. Please allow microphone access in your browser settings.';
-        } else if (error.name === 'NotFoundError') {
-          errorMessage =
-            'No microphone found. Please connect a microphone and try again.';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Microphone is already in use by another application.';
-        } else if (error.name === 'OverconstrainedError') {
-          errorMessage = 'No microphone matches the specified constraints.';
-        } else if (error.name === 'TypeError') {
-          errorMessage = 'Microphone access is not available in this context.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
-      console.error(errorMessage);
+      console.error(getMicrophoneErrorMessage(error));
       setIsListening(false);
     }
   }, []);
@@ -667,28 +647,7 @@ export default function Converter() {
       updateAudioLevel();
     } catch (error) {
       console.error('Failed to start test microphone:', error);
-      let errorMessage =
-        'Failed to access microphone. Please check permissions.';
-
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          errorMessage =
-            'Microphone access denied. Please allow microphone access in your browser settings.';
-        } else if (error.name === 'NotFoundError') {
-          errorMessage =
-            'No microphone found. Please connect a microphone and try again.';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Microphone is already in use by another application.';
-        } else if (error.name === 'OverconstrainedError') {
-          errorMessage = 'No microphone matches the specified constraints.';
-        } else if (error.name === 'TypeError') {
-          errorMessage = 'Microphone access is not available in this context.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
-      setTestMicError(errorMessage);
+      setTestMicError(getMicrophoneErrorMessage(error));
       setIsTestingMic(false);
     }
   }, []);
