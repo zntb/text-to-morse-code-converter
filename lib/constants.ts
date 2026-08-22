@@ -13,7 +13,7 @@ export const AUDIO_SLIDER_CONFIG = {
 } as const;
 
 // Helper to get the gain value (can be overridden with volume parameter)
-export const getGain = (volume?: number) => volume ?? AUDIO_CONFIG_DEFAULT_GAIN;
+export const getGain = (volume?: number) => volume ?? AUDIO_CONFIG.DEFAULT_GAIN;
 
 export const TIMING_CONFIG = {
   DOT_MULTIPLIER: 1.2,
@@ -28,25 +28,6 @@ export const TIMING_CONFIG = {
   MAX_SPEED_WPM: 40,
   MIN_SPEED_WPM: 5,
 } as const;
-
-// Backward compatibility aliases (deprecated - use TIMING_CONFIG values directly)
-const AUDIO_CONFIG_DEFAULT_GAIN = AUDIO_CONFIG.DEFAULT_GAIN;
-const TIMING_CONFIG_DOT_MULTIPLIER = TIMING_CONFIG.DOT_MULTIPLIER;
-const TIMING_CONFIG_DASH_MULTIPLIER = TIMING_CONFIG.DASH_MULTIPLIER;
-const TIMING_CONFIG_LETTER_GAP_MULTIPLIER = TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
-const TIMING_CONFIG_WORD_GAP_MULTIPLIER = TIMING_CONFIG.WORD_GAP_MULTIPLIER;
-const TIMING_CONFIG_ELEMENT_GAP_MULTIPLIER =
-  TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
-
-// Export constants for backward compatibility
-export {
-  AUDIO_CONFIG_DEFAULT_GAIN,
-  TIMING_CONFIG_DOT_MULTIPLIER,
-  TIMING_CONFIG_DASH_MULTIPLIER,
-  TIMING_CONFIG_LETTER_GAP_MULTIPLIER,
-  TIMING_CONFIG_WORD_GAP_MULTIPLIER,
-  TIMING_CONFIG_ELEMENT_GAP_MULTIPLIER,
-};
 
 /**
  * Calculate Farnsworth timing values.

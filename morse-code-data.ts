@@ -2,7 +2,7 @@
  * Single source of truth for all Morse code character mappings.
  * Each entry is [character, morseCode].
  */
-export const MORSE_CODE_ENTRIES: [string, string][] = [
+const MORSE_CODE_ENTRIES: [string, string][] = [
   // LATIN (English Alphabet + digits + punctuation)
   ['A', '.-'],
   ['B', '-...'],
