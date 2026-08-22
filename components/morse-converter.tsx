@@ -48,6 +48,7 @@ import {
 import { useAudioContext } from '@/lib/useAudioContext';
 import { playTone as playToneAudio } from '@/lib/playTone';
 import { audioBufferToWav } from '@/lib/audio-utils';
+import { useLocalStorage } from '@/lib/useLocalStorage';
 
 export default function Converter() {
   // --- State Management ---
@@ -81,21 +82,15 @@ export default function Converter() {
 
   // Microphone device selection
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>(() => {
-    // Load saved device preference from localStorage
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('morse-selected-device') || '';
-    }
-    return '';
-  });
+  const [selectedDeviceId, setSelectedDeviceId] = useLocalStorage<string>('morse-selected-device', '');
 
   // Test Microphone state
   const [isTestingMic, setIsTestingMic] = useState(false);
   const [testMicError, setTestMicError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
 
-  // Custom presets state
-  const [customPresets, setCustomPresets] = useState<PresetMessage[]>([]);
+  // Custom presets state (persisted to localStorage)
+  const [customPresets, setCustomPresets] = useLocalStorage<PresetMessage[]>('morse-custom-presets', []);
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [newPresetText, setNewPresetText] = useState('');
@@ -133,19 +128,7 @@ export default function Converter() {
     };
   }, [isPlaying]);
 
-  // Load custom presets from localStorage
-  useEffect(() => {
-    const savedPresets = localStorage.getItem('morse-custom-presets');
-    if (savedPresets) {
-      try {
-        setCustomPresets(JSON.parse(savedPresets));
-      } catch {
-        console.error('Failed to parse saved presets');
-      }
-    }
-  }, []);
-
-  // Save custom presets to localStorage
+  // Save custom preset
   const saveCustomPreset = useCallback(
     (name: string, text: string) => {
       const newPreset: PresetMessage = {
@@ -153,30 +136,20 @@ export default function Converter() {
         name,
         text,
       };
-      const updatedPresets = [...customPresets, newPreset];
-      setCustomPresets(updatedPresets);
-      localStorage.setItem(
-        'morse-custom-presets',
-        JSON.stringify(updatedPresets),
-      );
+      setCustomPresets(prev => [...prev, newPreset]);
       setNewPresetName('');
       setNewPresetText('');
       setShowPresetInput(false);
     },
-    [customPresets],
+    [setCustomPresets],
   );
 
   // Delete custom preset
   const deleteCustomPreset = useCallback(
     (id: string) => {
-      const updatedPresets = customPresets.filter(p => p.id !== id);
-      setCustomPresets(updatedPresets);
-      localStorage.setItem(
-        'morse-custom-presets',
-        JSON.stringify(updatedPresets),
-      );
+      setCustomPresets(prev => prev.filter(p => p.id !== id));
     },
-    [customPresets],
+    [setCustomPresets],
   );
 
   // Apply preset message
@@ -305,11 +278,11 @@ export default function Converter() {
       // Note: We close after enumeration to get device labels,
       // but this means labels will be empty on subsequent calls
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        console.log('Enumeration stream closed');
+        stream.getTracks().forEach(track => track.stop());        console.log('Enumeration stream closed');
       }
     }
-  }, []);
+  }, [setSelectedDeviceId]);
+
 
   // Enumerate audio devices on mount and when devices change
   useEffect(() => {
@@ -538,12 +511,7 @@ export default function Converter() {
     selectedDeviceIdRef.current = selectedDeviceId;
   }, [selectedDeviceId]);
 
-  // Save selected device to localStorage when it changes
-  useEffect(() => {
-    if (selectedDeviceId) {
-      localStorage.setItem('morse-selected-device', selectedDeviceId);
-    }
-  }, [selectedDeviceId]);
+
 
   useEffect(() => {
     isListeningRef.current = isListening;

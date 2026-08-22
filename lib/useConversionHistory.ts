@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useLocalStorage } from '@/lib/useLocalStorage';
 
 export interface HistoryItem {
   id: string;
@@ -13,23 +14,8 @@ export interface HistoryItem {
 const STORAGE_KEY = 'morse-conversion-history';
 const MAX_HISTORY_ITEMS = 20;
 
-// Initialize state from localStorage (lazy initialization)
-function getInitialHistory(): HistoryItem[] {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const savedHistory = localStorage.getItem(STORAGE_KEY);
-    if (savedHistory) {
-      return JSON.parse(savedHistory);
-    }
-  } catch {
-    console.error('Failed to parse saved history');
-  }
-  return [];
-}
-
 export function useConversionHistory() {
-  const [history, setHistory] = useState<HistoryItem[]>(getInitialHistory);
+  const [history, setHistory] = useLocalStorage<HistoryItem[]>(STORAGE_KEY, []);
 
   // Add a new conversion to history
   const addToHistory = useCallback(
@@ -73,28 +59,21 @@ export function useConversionHistory() {
           newHistory = newHistory.slice(0, MAX_HISTORY_ITEMS);
         }
 
-        // Save to localStorage
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
         return newHistory;
       });
     },
-    [],
+    [setHistory],
   );
 
   // Remove an item from history
   const removeFromHistory = useCallback((id: string) => {
-    setHistory(prev => {
-      const newHistory = prev.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
-      return newHistory;
-    });
-  }, []);
+    setHistory(prev => prev.filter(item => item.id !== id));
+  }, [setHistory]);
 
   // Clear all history
   const clearHistory = useCallback(() => {
     setHistory([]);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+  }, [setHistory]);
 
   return {
     history,

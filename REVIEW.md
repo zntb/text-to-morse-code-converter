@@ -92,13 +92,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 12. localStorage Persistence Pattern
+## 12. ~~localStorage Persistence Pattern~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx`, `lib/useConversionHistory.ts`
 
-The pattern of reading from and writing to `localStorage` with JSON parse/stringify and error handling is repeated across multiple locations (custom presets, history, selected device). Each instance has its own try/catch and key management.
-
-**Recommendation:** Create a reusable `useLocalStorage<T>(key: string, defaultValue: T)` hook in `lib/` that handles serialization, deserialization, error handling, and SSR safety.
+**Status:** Created `useLocalStorage<T>(key, defaultValue)` hook in `lib/useLocalStorage.ts`. Refactored morse-converter.tsx (selectedDeviceId, customPresets) and useConversionHistory.ts to use it, eliminating manual try/catch, JSON parse/stringify, and SSR checks. All 250 tests pass.
 
 ---
 
@@ -117,4 +115,4 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 9 | ~~`audioBufferToWav`~~ ✅ | ~~1~~ 0 | ~~morse-converter~~ moved to `lib/audio-utils.ts` |
 | 10 | ~~`formatTimestamp` / `truncateText`~~ ✅ | ~~1~~ 0 | ~~HistoryDropdown~~ moved to `lib/utils.ts` |
 | 11 | ~~Mapping data duplication~~ ✅ | ~~1~~ 0 | ~~morse-code-data.ts~~ refactored to single `MORSE_CODE_ENTRIES` source |
-| 12 | localStorage pattern | 2+ | morse-converter, useConversionHistory |
+| 12 | ~~localStorage pattern~~ ✅ | ~~2+~~ 0 | ~~morse-converter, useConversionHistory~~ extracted to `lib/useLocalStorage.ts` |
