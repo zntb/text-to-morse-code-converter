@@ -28,13 +28,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 4. `PresetMessage` Interface
+## 4. ~~`PresetMessage` Interface~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx`, `components/PresetButtons.tsx`
 
-The `PresetMessage` interface (`{ id: string; name: string; text: string }`) is defined identically in both files.
-
-**Recommendation:** Move the interface definition to a shared types file (e.g., `lib/types.ts` or add to `lib/constants.ts`) and import it.
+**Status:** Moved to shared `lib/types.ts`. All 250 tests pass.
 
 ---
 
@@ -127,7 +125,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 1 | ~~`sleep` utility~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/utils.ts` |
 | 2 | ~~`initAudioContext`~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/useAudioContext.ts` |
 | 3 | ~~`playTone` function~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/playTone.ts` |
-| 4 | `PresetMessage` interface | 2 | morse-converter, PresetButtons |
+| 4 | ~~`PresetMessage` interface~~ ✅ | ~~2~~ 0 | ~~morse-converter, PresetButtons~~ moved to `lib/types.ts` |
 | 5 | Microphone error handling | 2 | morse-converter (2 functions) |
 | 6 | Toggle switch pattern | 2 | ControlPanel (repeat + Farnsworth) |
 | 7 | Audio settings sliders | 2 | ControlPanel, PracticeQuiz |

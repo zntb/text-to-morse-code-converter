@@ -35,14 +35,8 @@ import WaveformCanvas from './WaveformCanvas';
 import PracticeQuiz from './PracticeQuiz';
 import PlaybackProgress from './PlaybackProgress';
 import CharacterReferenceTable from './CharacterReferenceTable';
-// Preset messages interface
-interface PresetMessage {
-  id: string;
-  name: string;
-  text: string;
-}
-
 import { debounce, sleep } from '@/lib/utils';
+import type { PresetMessage } from '@/lib/types';
 import { useConversionHistory } from '@/lib/useConversionHistory';
 import HistoryDropdown from '@/components/HistoryDropdown';
 import {

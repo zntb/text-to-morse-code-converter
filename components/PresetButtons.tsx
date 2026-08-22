@@ -1,12 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-
-interface PresetMessage {
-  id: string;
-  name: string;
-  text: string;
-}
+import type { PresetMessage } from '@/lib/types';
 
 interface PresetButtonsProps {
   customPresets: PresetMessage[];
