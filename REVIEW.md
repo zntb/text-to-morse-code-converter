@@ -84,13 +84,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 11. `MORSE_CODE_MAP` and `TEXT_TO_MORSE_MAP` Data Duplication
+## 11. ~~`MORSE_CODE_MAP` and `TEXT_TO_MORSE_MAP` Data Duplication~~ ✅ DONE
 
 **File:** `morse-code-data.ts`
 
-The same character-to-morse mapping data is defined twice: once as the `MORSE_CODE_MAP` object literal (explicit key-value pairs) and once as an inline object in the `forEach` loop that builds `TEXT_TO_MORSE_MAP`. The entire mapping table (100+ entries) is effectively duplicated.
-
-**Recommendation:** Build both maps from a single source of truth. For example, define the entries once and use `Object.fromEntries(entries.map(([k, v]) => [v, k]))` to build the reverse map.
+**Status:** Refactored to single source of truth (`MORSE_CODE_ENTRIES` array). Both `MORSE_CODE_MAP` and `TEXT_TO_MORSE_MAP` are derived from it. All 250 tests pass.
 
 ---
 
@@ -118,5 +116,5 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 8 | ~~Inline timing calculation~~ ✅ | ~~2~~ 0 | ~~PracticeQuiz, CharacterReferenceTable~~ replaced with `calculateTiming()` |
 | 9 | ~~`audioBufferToWav`~~ ✅ | ~~1~~ 0 | ~~morse-converter~~ moved to `lib/audio-utils.ts` |
 | 10 | ~~`formatTimestamp` / `truncateText`~~ ✅ | ~~1~~ 0 | ~~HistoryDropdown~~ moved to `lib/utils.ts` |
-| 11 | Mapping data duplication | 1 (refactor) | morse-code-data.ts |
+| 11 | ~~Mapping data duplication~~ ✅ | ~~1~~ 0 | ~~morse-code-data.ts~~ refactored to single `MORSE_CODE_ENTRIES` source |
 | 12 | localStorage pattern | 2+ | morse-converter, useConversionHistory |
