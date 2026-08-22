@@ -76,15 +76,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 10. `formatTimestamp` and `truncateText` Helpers
+## 10. ~~`formatTimestamp` and `truncateText` Helpers~~ ✅ DONE
 
 **File:** `components/HistoryDropdown.tsx` (defined inside the component)
 
-These are pure utility functions with no component dependency:
-- `formatTimestamp(timestamp: number)` — converts timestamps to relative time strings.
-- `truncateText(text, maxLength)` — truncates text with ellipsis.
-
-**Recommendation:** Move to `lib/utils.ts`.
+**Status:** Moved to `lib/utils.ts`. All 250 tests pass.
 
 ---
 
@@ -121,6 +117,6 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 7 | ~~Audio settings sliders~~ ✅ | ~~2~~ 0 | ~~ControlPanel, PracticeQuiz~~ extracted to `components/AudioSlider.tsx` + `lib/constants.ts` |
 | 8 | ~~Inline timing calculation~~ ✅ | ~~2~~ 0 | ~~PracticeQuiz, CharacterReferenceTable~~ replaced with `calculateTiming()` |
 | 9 | ~~`audioBufferToWav`~~ ✅ | ~~1~~ 0 | ~~morse-converter~~ moved to `lib/audio-utils.ts` |
-| 10 | `formatTimestamp` / `truncateText` | 1 (move) | HistoryDropdown |
+| 10 | ~~`formatTimestamp` / `truncateText`~~ ✅ | ~~1~~ 0 | ~~HistoryDropdown~~ moved to `lib/utils.ts` |
 | 11 | Mapping data duplication | 1 (refactor) | morse-code-data.ts |
 | 12 | localStorage pattern | 2+ | morse-converter, useConversionHistory |

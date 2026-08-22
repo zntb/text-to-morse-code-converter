@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { HistoryItem } from '@/lib/useConversionHistory';
+import { formatTimestamp, truncateText } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,28 +34,6 @@ export default function HistoryDropdown({
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
-  // Format timestamp to readable date
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  // Truncate text for display
-  const truncateText = (text: string, maxLength: number = 30) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
