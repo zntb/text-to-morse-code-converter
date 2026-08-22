@@ -44,13 +44,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 6. Toggle Button Component Pattern
+## 6. ~~Toggle Button Component Pattern~~ ✅ DONE
 
 **Files:** `components/ControlPanel.tsx` (used for both "Repeat" and "Farnsworth timing" toggles)
 
-The repeat toggle and Farnsworth timing toggle in `ControlPanel.tsx` share identical markup for the switch button (a `<button>` with `role='switch'`, `aria-checked`, sliding `<span>`, and adjacent `<Label>`). This pattern appears twice in the same file.
-
-**Recommendation:** Extract a reusable `SwitchToggle` component (similar to Radix's `Switch`) that accepts `checked`, `onCheckedChange`, `id`, and `label` props.
+**Status:** Extracted to reusable `SwitchToggle` component in `components/SwitchToggle.tsx`. All 250 tests pass.
 
 ---
 
@@ -125,7 +123,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 3 | ~~`playTone` function~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/playTone.ts` |
 | 4 | ~~`PresetMessage` interface~~ ✅ | ~~2~~ 0 | ~~morse-converter, PresetButtons~~ moved to `lib/types.ts` |
 | 5 | ~~Microphone error handling~~ ✅ | ~~2~~ 0 | ~~morse-converter (2 functions)~~ extracted to `lib/utils.ts` |
-| 6 | Toggle switch pattern | 2 | ControlPanel (repeat + Farnsworth) |
+| 6 | ~~Toggle switch pattern~~ ✅ | ~~2~~ 0 | ~~ControlPanel (repeat + Farnsworth)~~ extracted to `components/SwitchToggle.tsx` |
 | 7 | Audio settings sliders | 2 | ControlPanel, PracticeQuiz |
 | 8 | Inline timing calculation | 2 | PracticeQuiz, CharacterReferenceTable |
 | 9 | `audioBufferToWav` | 1 (move) | morse-converter |

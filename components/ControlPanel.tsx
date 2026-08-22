@@ -13,6 +13,7 @@ import {
   Volume2,
 } from 'lucide-react';
 import ResetDialog from './reset-dialog';
+import SwitchToggle from './SwitchToggle';
 import React, { useRef, useCallback } from 'react';
 
 type WaveformType = 'sine' | 'square' | 'sawtooth' | 'triangle';
@@ -400,78 +401,24 @@ export default function ControlPanel({
         </div>
       </div>
 
-      {/* Repeat Toggle (Mobile-friendly alternative) */}
-      <div
-        className={
-          isBottomSheet
-            ? 'flex items-center gap-4 rounded-lg bg-muted/50 p-4'
-            : 'flex items-center gap-3 rounded-lg bg-muted/50 p-3'
-        }
-      >
-        <button
-          type='button'
-          id='repeat-toggle'
-          onClick={() => setRepeat(!repeat)}
-          className={`relative h-8 w-14 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-            repeat ? 'bg-primary' : 'bg-muted-foreground/30'
-          }`}
-          role='switch'
-          aria-checked={repeat}
-        >
-          <span
-            className={`block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ${
-              repeat ? 'translate-x-6' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
-        <Label
-          htmlFor='repeat-toggle'
-          className={
-            isBottomSheet
-              ? 'cursor-pointer text-base text-muted-foreground'
-              : 'cursor-pointer text-sm text-muted-foreground'
-          }
-        >
-          Repeat playback
-        </Label>
-      </div>
+      {/* Repeat Toggle */}
+      <SwitchToggle
+        id='repeat-toggle'
+        checked={repeat}
+        onCheckedChange={setRepeat}
+        label='Repeat playback'
+        isBottomSheet={isBottomSheet}
+      />
 
       {/* Farnsworth Timing Toggle */}
       {setUseFarnsworthTiming && (
-        <div
-          className={
-            isBottomSheet
-              ? 'flex items-center gap-4 rounded-lg bg-muted/50 p-4'
-              : 'flex items-center gap-3 rounded-lg bg-muted/50 p-3'
-          }
-        >
-          <button
-            type='button'
-            id='farnsworth-toggle'
-            onClick={() => setUseFarnsworthTiming(!useFarnsworthTiming)}
-            className={`relative h-8 w-14 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-              useFarnsworthTiming ? 'bg-primary' : 'bg-muted-foreground/30'
-            }`}
-            role='switch'
-            aria-checked={useFarnsworthTiming}
-          >
-            <span
-              className={`block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                useFarnsworthTiming ? 'translate-x-6' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-          <Label
-            htmlFor='farnsworth-toggle'
-            className={
-              isBottomSheet
-                ? 'cursor-pointer text-base text-muted-foreground'
-                : 'cursor-pointer text-sm text-muted-foreground'
-            }
-          >
-            Farnsworth timing
-          </Label>
-        </div>
+        <SwitchToggle
+          id='farnsworth-toggle'
+          checked={useFarnsworthTiming}
+          onCheckedChange={setUseFarnsworthTiming}
+          label='Farnsworth timing'
+          isBottomSheet={isBottomSheet}
+        />
       )}
     </div>
   );
