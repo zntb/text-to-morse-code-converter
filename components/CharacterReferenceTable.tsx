@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import { TIMING_CONFIG } from '@/lib/constants';
+import { calculateTiming } from '@/lib/constants';
 import { sleep } from '@/lib/utils';
 import { useAudioContext } from '@/lib/useAudioContext';
 import { playTone } from '@/lib/playTone';
@@ -93,10 +93,7 @@ export default function CharacterReferenceTable({
 
         await context.resume();
 
-        const wpm = speed;
-        const dotDuration = TIMING_CONFIG.DOT_MULTIPLIER / wpm;
-        const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
-        const letterGap = dotDuration * TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
+        const { elementGap, letterGap } = calculateTiming(speed, false);
 
         for (let i = 0; i < morse.length; i++) {
           if (playbackAbortRef.current) break;

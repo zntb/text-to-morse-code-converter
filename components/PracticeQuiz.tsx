@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Volume2, RotateCcw, Trophy, Target, Zap } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import { TIMING_CONFIG, AUDIO_SLIDER_CONFIG } from '@/lib/constants';
+import { AUDIO_SLIDER_CONFIG, calculateTiming } from '@/lib/constants';
 import AudioSlider from './AudioSlider';
 import { sleep } from '@/lib/utils';
 import { useAudioContext } from '@/lib/useAudioContext';
@@ -114,10 +114,7 @@ export default function PracticeQuiz() {
 
     try {
       await context.resume();
-      const wpm = speed;
-      const dotDuration = TIMING_CONFIG.DOT_MULTIPLIER / wpm;
-      const elementGap = dotDuration * TIMING_CONFIG.ELEMENT_GAP_MULTIPLIER;
-      const letterGap = dotDuration * TIMING_CONFIG.LETTER_GAP_MULTIPLIER;
+      const { elementGap, letterGap } = calculateTiming(speed, false);
 
       const morse = currentQuestion.morse;
 

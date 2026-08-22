@@ -60,13 +60,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 8. Morse Timing Calculation Inline
+## 8. ~~Morse Timing Calculation Inline~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx`, `components/PracticeQuiz.tsx`, `components/CharacterReferenceTable.tsx`
 
-The pattern of calculating `dotDuration = DOT_MULTIPLIER / wpm` and deriving `elementGap` and `letterGap` from it is repeated in `PracticeQuiz.tsx` and `CharacterReferenceTable.tsx` rather than using the existing `calculateTiming()` from `lib/constants.ts`.
-
-**Recommendation:** Use the centralized `calculateTiming()` function from `lib/constants.ts` in all three locations.
+**Status:** Replaced inline `DOT_MULTIPLIER / wpm` calculations in PracticeQuiz and CharacterReferenceTable with `calculateTiming(speed, false)`. morse-converter already used `calculateTiming()`. All 250 tests pass.
 
 ---
 
@@ -123,7 +121,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | 5 | ~~Microphone error handling~~ ✅ | ~~2~~ 0 | ~~morse-converter (2 functions)~~ extracted to `lib/utils.ts` |
 | 6 | ~~Toggle switch pattern~~ ✅ | ~~2~~ 0 | ~~ControlPanel (repeat + Farnsworth)~~ extracted to `components/SwitchToggle.tsx` |
 | 7 | ~~Audio settings sliders~~ ✅ | ~~2~~ 0 | ~~ControlPanel, PracticeQuiz~~ extracted to `components/AudioSlider.tsx` + `lib/constants.ts` |
-| 8 | Inline timing calculation | 2 | PracticeQuiz, CharacterReferenceTable |
+| 8 | ~~Inline timing calculation~~ ✅ | ~~2~~ 0 | ~~PracticeQuiz, CharacterReferenceTable~~ replaced with `calculateTiming()` |
 | 9 | `audioBufferToWav` | 1 (move) | morse-converter |
 | 10 | `formatTimestamp` / `truncateText` | 1 (move) | HistoryDropdown |
 | 11 | Mapping data duplication | 1 (refactor) | morse-code-data.ts |
