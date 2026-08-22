@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
 import { sleep } from '@/lib/utils';
+import { useAudioContext } from '@/lib/useAudioContext';
 
 // Character categories for organized display
 
@@ -54,23 +55,10 @@ export default function CharacterReferenceTable({
   const [frequency] = useState(600);
   const [volume] = useState(20);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
   const playbackAbortRef = useRef(false);
 
-  // Initialize audio context
-  const initAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext ||
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).webkitAudioContext)();
-      } catch (error) {
-        console.error('Failed to initialize AudioContext:', error);
-        return null;
-      }
-    }
-    return audioContextRef.current;
-  }, []);
+  // Audio context (shared hook)
+  const { initAudioContext } = useAudioContext();
 
   // Play a single tone (dot or dash)
   const playTone = useCallback(

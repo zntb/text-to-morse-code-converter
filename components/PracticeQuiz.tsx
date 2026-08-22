@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Volume2, RotateCcw, Trophy, Target, Zap } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 import { TIMING_CONFIG, AUDIO_CONFIG, getGain } from '@/lib/constants';
 import { sleep } from '@/lib/utils';
+import { useAudioContext } from '@/lib/useAudioContext';
 
 // Difficulty levels with character sets
 export type DifficultyLevel =
@@ -79,29 +80,8 @@ export default function PracticeQuiz() {
   const [volume, setVolume] = useState(20);
   const [frequency, setFrequency] = useState(600);
 
-  // Audio refs
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-
-  // Initialize audio context
-  const initAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext)();
-
-        if (!analyserRef.current) {
-          analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = AUDIO_CONFIG.FFT_SIZE;
-        }
-      } catch (error) {
-        console.error('Failed to initialize AudioContext:', error);
-        return null;
-      }
-    }
-    return audioContextRef.current;
-  }, []);
+  // Audio context (shared hook)
+  const { initAudioContext } = useAudioContext({ createAnalyser: true });
 
   // Play a single tone
   const playTone = useCallback(
@@ -286,14 +266,7 @@ export default function PracticeQuiz() {
   const accuracy =
     stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
 
-  // Clean up audio context on unmount
-  useEffect(() => {
-    return () => {
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
-      }
-    };
-  }, []);
+
 
   return (
     <Card className='w-full max-w-2xl mx-auto'>

@@ -51,6 +51,7 @@ import {
   getGain,
   calculateTiming,
 } from '@/lib/constants';
+import { useAudioContext } from '@/lib/useAudioContext';
 
 export default function Converter() {
   // --- State Management ---
@@ -223,13 +224,14 @@ export default function Converter() {
   const testMicAnimationRef = useRef<number | null>(null);
   const isTestingMicRef = useRef(false);
 
+  // --- Audio Context (shared hook) ---
+  const { initAudioContext, analyserRef } = useAudioContext({ createAnalyser: true });
+
   // --- Refs ---
-  const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const charactersPlayedThisRunRef = useRef(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
@@ -243,34 +245,10 @@ export default function Converter() {
     [],
   );
 
-  // --- Audio Context Management ---
-  const initAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext ||
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).webkitAudioContext)();
-
-        // Create analyser only once
-        if (!analyserRef.current) {
-          analyserRef.current = audioContextRef.current.createAnalyser();
-          analyserRef.current.fftSize = AUDIO_CONFIG.FFT_SIZE;
-        }
-      } catch (error) {
-        console.error('Failed to initialize AudioContext:', error);
-        return null;
-      }
-    }
-    return audioContextRef.current;
-  }, []);
-
-  // Cleanup audio context on unmount
+  // Cleanup on unmount (hook handles AudioContext cleanup)
   useEffect(() => {
     return () => {
       playbackAbortControllerRef.current?.abort();
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
-      }
     };
   }, []);
 
@@ -1133,7 +1111,7 @@ export default function Converter() {
         }, totalDurationSeconds * 1000);
       });
     },
-    [frequency, volume, waveform, initAudioContext, morseToTextMapping],
+    [frequency, volume, waveform, initAudioContext, morseToTextMapping, analyserRef],
   );
 
   // Keep the playTone for simple single-tone playback (like in reference table)
@@ -1206,7 +1184,7 @@ export default function Converter() {
       setIsFlashing(false);
       setCurrentDotDashType(null);
     },
-    [frequency, volume, waveform, initAudioContext],
+    [frequency, volume, waveform, initAudioContext, analyserRef],
   );
 
   const playMorseCode = useCallback(async () => {

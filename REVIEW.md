@@ -12,13 +12,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 2. `initAudioContext` Function
+## 2. ~~`initAudioContext` Function~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx`, `components/PracticeQuiz.tsx`, `components/CharacterReferenceTable.tsx`
 
-Each component maintains its own `audioContextRef` and duplicates the AudioContext initialization logic (including the webkit fallback and optional AnalyserNode creation).
-
-**Recommendation:** Create a shared `useAudioContext()` hook in `lib/` that encapsulates the ref, initialization, and cleanup.
+**Status:** Extracted to shared `useAudioContext()` hook in `lib/useAudioContext.ts`. All 250 tests pass.
 
 ---
 
@@ -129,7 +127,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 | # | Duplicate | Occurrences | Location(s) |
 |---|-----------|-------------|-------------|
 | 1 | ~~`sleep` utility~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/utils.ts` |
-| 2 | `initAudioContext` | 3 | morse-converter, PracticeQuiz, CharacterReferenceTable |
+| 2 | ~~`initAudioContext`~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/useAudioContext.ts` |
 | 3 | `playTone` function | 3 | morse-converter, PracticeQuiz, CharacterReferenceTable |
 | 4 | `PresetMessage` interface | 2 | morse-converter, PresetButtons |
 | 5 | Microphone error handling | 2 | morse-converter (2 functions) |
