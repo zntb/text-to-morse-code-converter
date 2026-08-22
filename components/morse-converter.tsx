@@ -52,6 +52,7 @@ import {
   calculateTiming,
 } from '@/lib/constants';
 import { useAudioContext } from '@/lib/useAudioContext';
+import { playTone as playToneAudio } from '@/lib/playTone';
 
 export default function Converter() {
   // --- State Management ---
@@ -1137,49 +1138,13 @@ export default function Converter() {
         return;
       }
 
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-
-      oscillator.type = waveform;
-      oscillator.frequency.setValueAtTime(frequency[0], context.currentTime);
-
-      oscillator.connect(gainNode);
-      if (analyserRef.current) {
-        gainNode.connect(analyserRef.current);
-        analyserRef.current.connect(context.destination);
-      } else {
-        gainNode.connect(context.destination);
-      }
-
-      const currentTime = context.currentTime;
-      const gainValue = getGain(volume[0] / 100);
-      gainNode.gain.setValueAtTime(0, currentTime);
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + duration - AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
-
-      oscillator.start(currentTime);
-      oscillator.stop(currentTime + duration);
-
-      if (abortSignal) {
-        abortSignal.addEventListener('abort', () => {
-          try {
-            oscillator.stop();
-            oscillator.disconnect();
-            gainNode.disconnect();
-          } catch (e) {
-            // Ignore
-          }
-        });
-      }
-
-      await sleep(duration * 1000);
+      await playToneAudio(context, type, {
+        frequency: frequency[0],
+        volume: volume[0],
+        waveform,
+        analyser: analyserRef.current,
+        duration,
+      });
 
       setIsFlashing(false);
       setCurrentDotDashType(null);

@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Volume2, RotateCcw, Trophy, Target, Zap } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import { TIMING_CONFIG, AUDIO_CONFIG, getGain } from '@/lib/constants';
+import { TIMING_CONFIG } from '@/lib/constants';
 import { sleep } from '@/lib/utils';
 import { useAudioContext } from '@/lib/useAudioContext';
+import { playTone as playToneAudio } from '@/lib/playTone';
 
 // Difficulty levels with character sets
 export type DifficultyLevel =
@@ -83,7 +84,7 @@ export default function PracticeQuiz() {
   // Audio context (shared hook)
   const { initAudioContext } = useAudioContext({ createAnalyser: true });
 
-  // Play a single tone
+  // Play a single tone (shared utility)
   const playTone = useCallback(
     async (type: 'dot' | 'dash'): Promise<void> => {
       const context = initAudioContext();
@@ -93,37 +94,7 @@ export default function PracticeQuiz() {
         await context.resume();
       }
 
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-
-      const currentTime = context.currentTime;
-      const duration =
-        type === 'dot'
-          ? TIMING_CONFIG.DOT_MULTIPLIER / speed
-          : TIMING_CONFIG.DASH_MULTIPLIER / speed;
-
-      gainNode.gain.setValueAtTime(0, currentTime);
-      const gainValue = getGain(volume / 100);
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + duration - AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
-
-      oscillator.start(currentTime);
-      oscillator.stop(currentTime + duration);
-
-      await sleep(duration * 1000);
+      await playToneAudio(context, type, { frequency, volume, waveform: 'sine', speed });
     },
     [frequency, speed, volume, initAudioContext],
   );

@@ -20,13 +20,11 @@ This file documents duplicated functions, components, and patterns across the co
 
 ---
 
-## 3. `playTone` Function
+## 3. ~~`playTone` Function~~ ✅ DONE
 
 **Files:** `components/morse-converter.tsx`, `components/PracticeQuiz.tsx`, `components/CharacterReferenceTable.tsx`
 
-Three near-identical implementations of playing a single dot/dash tone via the Web Audio API (oscillator creation, gain ramp, fade in/out). They differ only in minor details (waveform type, analyser connection).
-
-**Recommendation:** Extract a shared `playTone(context, options)` utility function into `lib/`, or build it into the `useAudioContext` hook.
+**Status:** Extracted to shared `playTone(context, type, options)` utility in `lib/playTone.ts`. All 250 tests pass.
 
 ---
 
@@ -128,7 +126,7 @@ The pattern of reading from and writing to `localStorage` with JSON parse/string
 |---|-----------|-------------|-------------|
 | 1 | ~~`sleep` utility~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/utils.ts` |
 | 2 | ~~`initAudioContext`~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/useAudioContext.ts` |
-| 3 | `playTone` function | 3 | morse-converter, PracticeQuiz, CharacterReferenceTable |
+| 3 | ~~`playTone` function~~ ✅ | ~~3~~ 0 | ~~morse-converter, PracticeQuiz, CharacterReferenceTable~~ extracted to `lib/playTone.ts` |
 | 4 | `PresetMessage` interface | 2 | morse-converter, PresetButtons |
 | 5 | Microphone error handling | 2 | morse-converter (2 functions) |
 | 6 | Toggle switch pattern | 2 | ControlPanel (repeat + Farnsworth) |

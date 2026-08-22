@@ -18,9 +18,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
-import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
+import { TIMING_CONFIG } from '@/lib/constants';
 import { sleep } from '@/lib/utils';
 import { useAudioContext } from '@/lib/useAudioContext';
+import { playTone } from '@/lib/playTone';
 
 // Character categories for organized display
 
@@ -60,8 +61,8 @@ export default function CharacterReferenceTable({
   // Audio context (shared hook)
   const { initAudioContext } = useAudioContext();
 
-  // Play a single tone (dot or dash)
-  const playTone = useCallback(
+  // Shared playTone wrapper that handles context resumption
+  const handlePlayTone = useCallback(
     async (type: 'dot' | 'dash'): Promise<void> => {
       const context = initAudioContext();
       if (!context) return;
@@ -70,37 +71,7 @@ export default function CharacterReferenceTable({
         await context.resume();
       }
 
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-
-      const currentTime = context.currentTime;
-      const duration =
-        type === 'dot'
-          ? TIMING_CONFIG.DOT_MULTIPLIER / speed
-          : TIMING_CONFIG.DASH_MULTIPLIER / speed;
-
-      gainNode.gain.setValueAtTime(0, currentTime);
-      const gainValue = getGain(volume / 100);
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(
-        gainValue,
-        currentTime + duration - AUDIO_CONFIG.FADE_TIME,
-      );
-      gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
-
-      oscillator.start(currentTime);
-      oscillator.stop(currentTime + duration);
-
-      await sleep(duration * 1000);
+      await playTone(context, type, { frequency, volume, waveform: 'sine', speed });
     },
     [frequency, speed, volume, initAudioContext],
   );
@@ -134,10 +105,10 @@ export default function CharacterReferenceTable({
 
           switch (char) {
             case '.':
-              await playTone('dot');
+              await handlePlayTone('dot');
               break;
             case '-':
-              await playTone('dash');
+              await handlePlayTone('dash');
               break;
             case ' ':
               await sleep(letterGap * 1000);
@@ -161,7 +132,7 @@ export default function CharacterReferenceTable({
         setPlayingCharacter(null);
       }
     },
-    [playingCharacter, speed, playTone, initAudioContext],
+    [playingCharacter, speed, handlePlayTone, initAudioContext],
   );
 
   // Handle mouse enter for audio preview
