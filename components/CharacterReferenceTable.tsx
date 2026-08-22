@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 import { AUDIO_CONFIG, TIMING_CONFIG, getGain } from '@/lib/constants';
+import { sleep } from '@/lib/utils';
 
 // Character categories for organized display
 
@@ -37,9 +38,6 @@ const CHARACTER_GROUPS: CharacterGroup[] = [
   { label: 'Punctuation', characters: '.,?!/()&:;=+-_"$@'.split('') },
   { label: 'Extended', characters: 'ÁÄÀÉÈÍÌÓÖÚÜŐŰÑÇ'.split('') },
 ];
-
-// Sleep helper
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function CharacterReferenceTable({
   startExpanded = false,

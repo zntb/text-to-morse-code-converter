@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Volume2, RotateCcw, Trophy, Target, Zap } from 'lucide-react';
 import { MORSE_CODE_MAP } from '@/morse-code-data';
 import { TIMING_CONFIG, AUDIO_CONFIG, getGain } from '@/lib/constants';
+import { sleep } from '@/lib/utils';
 
 // Difficulty levels with character sets
 export type DifficultyLevel =
@@ -55,8 +56,6 @@ interface QuizStats {
   streak: number;
   bestStreak: number;
 }
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function PracticeQuiz() {
   // Quiz state

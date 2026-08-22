@@ -42,7 +42,7 @@ interface PresetMessage {
   text: string;
 }
 
-import { debounce } from '@/lib/utils';
+import { debounce, sleep } from '@/lib/utils';
 import { useConversionHistory } from '@/lib/useConversionHistory';
 import HistoryDropdown from '@/components/HistoryDropdown';
 import {
@@ -51,8 +51,6 @@ import {
   getGain,
   calculateTiming,
 } from '@/lib/constants';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function Converter() {
   // --- State Management ---
